@@ -1,0 +1,145 @@
+#![enable(implicit_some)]
+(
+	meta: (
+		id: "ssSczG",
+		name: "Revision_submission",
+		description: "some shader huh",
+		tags: [
+			"audiovisual",
+		],
+	),
+	passes: {
+		Common: (
+			inputs: [
+				None,
+				None,
+				None,
+				None,
+			],
+		),
+		BufferA: (
+			inputs: [
+				(
+					asset: Misc(BufferA),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				(
+					asset: Music(XTrackTure),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				(
+					asset: Misc(BufferC),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				None,
+			],
+		),
+		BufferB: (
+			inputs: [
+				(
+					asset: Misc(BufferB),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				(
+					asset: Misc(BufferA),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				(
+					asset: Music(XTrackTure),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				(
+					asset: Misc(BufferC),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				None,
+			],
+		),
+		BufferC: (
+			inputs: [
+				(
+					asset: Misc(BufferC),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				(
+					asset: Misc(BufferA),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				(
+					asset: Music(XTrackTure),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				None,
+			],
+		),
+		Image: (
+			inputs: [
+				(
+					asset: Misc(BufferA),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				(
+					asset: Misc(BufferB),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				(
+					asset: Misc(BufferC),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				None,
+			],
+		),
+	},
+)
