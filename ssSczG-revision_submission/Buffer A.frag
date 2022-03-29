@@ -15,7 +15,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    //only first two rows, only NUM_OBJECTS (16) pixels per row
     ivec2 iCoo = ivec2(fragCoord);
     ivec2 blocks_dim = ivec2(max(max(max(FLOWER_BLOCK.x,PONG_BLOCK.x),PERHI_BLOCK.x),PERLO_BLOCK.x),
                             FLOWER_BLOCK.y+PONG_BLOCK.y+PERHI_BLOCK.y+PERLO_BLOCK.y+DRUMS_BLOCK.y);                            

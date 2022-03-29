@@ -1,6 +1,3 @@
-#define NUM_OBJECTS 16
-const float fNUM_OBJECTS = float(NUM_OBJECTS);
-const ivec2[4] CHAN_RANGE = ivec2[4](ivec2(0,5),ivec2(8,8),ivec2(4,4),ivec2(8,4));
 
 #define TIME_UNIT 0.12 // 120 ms = 125 bpm
 
@@ -30,6 +27,7 @@ const int PERHI_BLOCK_OFFSET = PONG_BLOCK.y+PONG_BLOCK_OFFSET;
 //block dimensions: x dimension, y dimension, y dim of sub-block, y dimension offset
 const ivec4 PERHI_BLOCK = ivec4(PERHI_POINTS, NUM_PERHI*2+1, NUM_PERHI,PERHI_BLOCK_OFFSET);
 const int PERHI_ENV_ROW = PERHI_BLOCK_OFFSET + PERHI_BLOCK.y-1;
+#define PERHI_SPHERE_RADIUS 4.
 
 //PERLO uniforms
 #define PERLO_POINTS 7
@@ -51,7 +49,9 @@ const int DRUMS_BLOCK_OFFSET = PERLO_BLOCK.y+PERLO_BLOCK_OFFSET;
 const ivec4 DRUMS_BLOCK = ivec4(DRUMS_POINTS, NUM_DRUMS*2+1, NUM_DRUMS,DRUMS_BLOCK_OFFSET);
 const int DRUMS_ENV_ROW = DRUMS_BLOCK_OFFSET + DRUMS_BLOCK.y-1;
 const int[NUM_DRUMS] DRUMS_TIME_WIDTH = int[NUM_DRUMS](3,4,3,3,4,3,3,3);
+#define DRUM_TUBE_RADIUS 6.
 
+//inner sphere
 
 #define TAU 6.28318530718
 #define PI 3.14159265359
@@ -309,8 +309,8 @@ vec3 rope(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 hit_point
 //==================================================================================================
 vec3 getRO(float time)
 {
-    return vec3(cos(time), 1., sin(time))*10.8;
-    //return vec3(-3,1.1,mod(iTime, 0.84)*5.*0.+15.1);//
+    //return vec3(cos(time), 0., sin(time))*9.8;
+    return vec3(0,1.1,mod(iTime, 0.84)*0.-6.1);//
 }
 
 float vel_note_on(sampler2D midi, int channel, int pitch, inout bool on) 
@@ -423,7 +423,6 @@ vec3 getPosFlower(int id, float env, sampler2D midi)
 {
     vec3 pos = vec3(0);
     //longitudinal offset for each object
-    //float displ =  float(id+1)/fNUM_OBJECTS*TAU;
     //data.x :  rhythmic, data.y : velocity, data.z : pitch
     vec3 data = getTrajectory(id, midi);
     //data.x = 1.-data.x;
@@ -447,7 +446,6 @@ vec3 getPosPong(int id, float env, sampler2D midi)
 {
     vec3 pos = vec3(0);
     //longitudinal offset for each object
-    //float displ =  float(id+1)/fNUM_OBJECTS*TAU;
     //data.x :  rhythmic, data.y : velocity, data.z : pitch
     vec3 data = getTrajectory(id, midi);
     //data.x = 1.-data.x;
@@ -460,21 +458,23 @@ vec3 getPosPong(int id, float env, sampler2D midi)
     pos = vec3(offs*20.+data.x*0.3,0,offs*6.+data.y*0.3);
     pos.xz *= 0.3;
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
-    vec3 spherical_pos = to_cartesian(pos.xz)*6+data.z; 
+    vec3 spherical_pos = to_cartesian(pos.xz)*PERHI_SPHERE_RADIUS+data.z; 
 
     return false ? pos : spherical_pos;
 }
 vec3 getPosPerhi(int id, vec2 data, sampler2D midi)
 {
-    float env = data.x, pitch = data.y/127.;
+    float env = data.x, pitch = data.y/127.*2.-1.;
     const float perhi_time_width = 4.;
-    float sect = env > 0.01 ? get_time_sector(iTime,perhi_time_width ) : 0.;
+    float sect = env > -0.01 ? get_time_sector(iTime,perhi_time_width ) : 0.;
     float x = float(id)/8.;
     float y = env > 0.01 ? pitch*1.1 : 0.;
     float z = sect;
     //vec3 s = vec3(cos(x*TAU+sect*0.01+iTime*0.5),y, sin(x*TAU+sect*0.01+iTime*0.5));
-    vec3 s = vec3(sect/3.,float(id)/8.*2.,0);
+    vec3 s = vec3(sect/3.,float(id)/8.*2.-0.5+pitch*0.5,0);
     s.xy += vec2(0.2,0.1);
+    s *= vec3(0.05,1,1);
+    s.x += x*2.-1;
     return s;
 }
 
@@ -489,6 +489,7 @@ vec3 getPosPerlo(int id, vec2 data, sampler2D midi)
     return vec3(x,y,z);
 }
 
+/*
 vec3 getPosDrums(int id, float env, sampler2D midi)
 {
     float drums_time_width = DRUMS_TIME_WIDTH[id];
@@ -502,9 +503,27 @@ vec3 getPosDrums(int id, float env, sampler2D midi)
     vec3 pos = vec3(offs+sect*0.1+data.x*0.051,0.,offs+data.z*0.1);
     pos.xz *= 1.;
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
-    vec3 spherical_pos = to_cartesian(pos.xz)*6.; 
+    vec3 spherical_pos = to_cartesian(pos.xz)*PERHI_SPHERE_RADIUS; 
 
     return false ? pos : spherical_pos;
+}
+*/
+
+vec3 getPosDrums(int id, float env, sampler2D midi)
+{
+    float drums_time_width = DRUMS_TIME_WIDTH[id];
+    float sect = env > 0.1 ? (get_time_sector(iTime,drums_time_width)+1.)/(drums_time_width+1.) : 0.;
+    vec3 data = getTrajectoryDrums(id,15,midi)*1.;
+   //data.x = 1.-data.x;
+    data = pow(data,vec3(0.5));
+    //data.y = pow(data.y,0.5);
+    env = smoothstep(0.051,0.3,env);
+    float offs = float(id)/7.;
+    float ang = offs*TAU+sect*0.1+data.x*0.4;
+    float rad = DRUM_TUBE_RADIUS-env*0.3;
+    vec3 pos = vec3(rad*cos(ang),rad*sin(ang),data.z*3.9);
+    //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
+    return pos;
 }
 
 vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
@@ -621,7 +640,7 @@ vec3 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             vec2 data = texelFetch(text, ivec2(id, PERHI_ENV_ROW),0).xz;
             vec3 cur = texelFetch(text,tex_coo,0).xyz;
             vec3 tar = getPosPerhi(id+chan_offset,data, midi);
-            return slide(tar, cur, 0.);
+            return slide(tar, cur, 0.5);
         } 
         else  return iFrame < 10 ? vec3(1) :  pix_stream(tex_coo,text,0.5);
     }
@@ -629,12 +648,12 @@ vec3 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
     {
         //return vec3(0,0,0);
         int id = tex_coo.y - block_offset - sub_block;
-        float stretch_ind = float(tex_coo.x)/frope_points;
+        float stretch_ind = float(tex_coo.x)/(frope_points-1.);
         vec3 pos = texelFetch(text,tex_coo-ivec2(0,block.z),0).xyz;
         pos = to_cartesian(pos.xy)*4.;
         float stretch = 1.;
         float x = float(id)/2.*2.-1.;
-        pos = mix(pos,pos*vec3(0.5),stretch_ind);
+        pos = mix(pos,pos*vec3(0.),stretch_ind);
         //pos.y += stretch_ind*5.;
         return pos;
     }
@@ -715,8 +734,8 @@ vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float stretch = 1.;
         float x = float(id)/2.*2.-1.;
         //pos = mix(pos,vec3(x,0,0),stretch_ind);
-        pos *= 1.+stretch_ind*1.2;
-        //pos.y += stretch_ind*10.;
+        //pos *= 1.+stretch_ind*1.2;
+        pos.z += stretch_ind*10.;
         return pos;
     }
     else if(block_id == 2)

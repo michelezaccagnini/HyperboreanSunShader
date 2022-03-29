@@ -16,10 +16,6 @@ each dimension is mapped to a parameter:
 1. rhythmic position (where in bar)
 2. velocity
 3. pitch
-
-the animation can be implemented in different ways
-mapping each bouncing motion to xyz is the easiest solution
-but I think not the best in terms of synesthetic result
 */
 #define MAX_DIST 100.
 struct HitInfo
@@ -34,7 +30,7 @@ struct HitInfo
     vec3 col;
     float env;
 };
-#if 1
+
 HitInfo map(vec3 p)
 {
     HitInfo res;
@@ -186,7 +182,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 rd = cam * normalize(vec3(uv,1));
     HitInfo hit = intersect(ro,rd);
     hit.col =  hash31(float(hit.id)*0.003);
-    vec2 sph = asphere(ro,rd,4.);
+    vec2 sph = asphere(ro,rd,PERHI_SPHERE_RADIUS);
     vec2 sph_uv_in = to_polar(ro+rd*sph.x);
     vec2 sph_uv_out = to_polar(ro+rd*sph.y);
     vec3 txt1 = texture(BUF_C,sph_uv_in).xyz;
@@ -202,69 +198,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         
         //col = mix(col, feed,0.1);
     }
-    if(sph.x < 100.) col += (txt1+txt2);
-    
+    //if(sph.x < 100.) col += (txt1+txt2);
+    //col = txt2;
     //fragColor = texelFetch(BUF_A,ivec2(0.02*fragCoord),0);
     fragColor.xyz = pow(col, vec3(.4545));
 }
-#else
 
-
-vec2 map(vec3 p)
-{
-    float res = 100.;
-    int rid = -1;
-    //map flute
-
-    for(int id = CHAN_RANGE[0].x; id < CHAN_RANGE[0].y+CHAN_RANGE[0].x; id++)
-    {
-        vec3 pos = texelFetch(BUF_C,ivec2(1,id+2),0).xyz;
-        float d = length(p-pos)-0.1;
-        //float env = texelFetch(BUF_A,ivec2(id,1),0).x;
-        //if(env < 0.001) continue;
-        if(d < res) 
-            rid = id;
-        res = min(d,res);
-    }
-    return vec2(res,rid);
-}
-
-vec2 intersect(vec3 ro, vec3 rd)
-{
-    float min_dist = 0.01;
-    float max_dist = 10.;
-    float d = min_dist;
-    float id = -1.;
-    for(int i = 0; i < 80; i++)
-    {
-        vec3 p = ro + rd*d;
-        vec2 hit = map(p);
-        id = hit.y;
-        if(d > max_dist || abs(hit.x) < min_dist) break;
-        d += hit.x;
-    }
-    return vec2(d,id);
-}
-
-void mainImage( out vec4 fragColor, in vec2 fragCoord )
-{
-    // Normalized pixel coordinates (from 0 to 1)
-    vec2 uv = (fragCoord-0.5*iResolution.xy)/iResolution.y*2.;
-    vec3 ro = vec3(0,0,-3.1);//vec3(cos(iTime), 4, sin(iTime))*4.8;//
-    vec3 lookat = vec3(0);
-    mat3 cam = camera(ro, lookat, 0.);
-    vec3 rd = cam * normalize(vec3(uv,1));
-    vec2 hit = intersect(ro,rd);
-    vec3 col = vec3(0);
-    if(hit.x < 10.)
-        col = texelFetch(BUF_C,ivec2(hit.y,1),0).xxx*2.+0.1; 
-        vec3 feed = texture(FEEDBACK,fragCoord/iResolution.xy).xyz;
-        col = mix(col, feed,0.6)*0.5+col;
-
-    //fragColor = texelFetch(BUF_A,ivec2(0.02*fragCoord),0);
-    fragColor = col.xyzz;
-}
-
-
-#endif
 
