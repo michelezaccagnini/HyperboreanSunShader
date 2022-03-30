@@ -36,8 +36,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
      // Normalized pixel coordinates (from 0 to 1)
     vec2 uv = (fragCoord-0.5*iResolution.xy)/iResolution.y*2.;
     vec2 uv2 = fragCoord/iResolution.y;
-    vec3 ro = getRO(iTime);//vec3(0,.1,mod(iTime, 0.84)*5.*0.+8.1);//
-    //ro.xz *= rotate(mod(iTime,3.36)/3.36*TAU);
+    vec3 ro = texelFetch(BUF_A,RO_COO,0).xyz;
     vec3 lookat = vec3(0);
     mat3 cam = camera(ro, lookat, 0.);
     vec3 rd = cam * normalize(vec3(uv,1));

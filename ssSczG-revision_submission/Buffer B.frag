@@ -81,8 +81,10 @@ HitInfo map(vec3 p)
             vec3 hit_point = vec3(0), norm = vec3(0);
             vec3 pos = texelFetch(BUF_A,ivec2(0,id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z),0).xyz;
             float sph = length(p - pos) - 0.4;
+            float center_sph = length(p) -0.4;
             vec3 rop  = rope(p, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A,0.01, hit_point, norm);
-            rop.x = min(rop.x,sph);
+            //rop.x = min(rop.x,sph);
+            rop.x = min(rop.x,center_sph);
             if(rop.x < res.dist)
             {
                 res.dist = rop.x, res.id = ivec2(3,id), res.uv = rop.yz, res.pos = p, 
@@ -175,7 +177,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
     // Normalized pixel coordinates (from 0 to 1)
     vec2 uv = (fragCoord-0.5*iResolution.xy)/iResolution.y*2.;
-    vec3 ro = getRO(iTime);
+    vec3 ro = texelFetch(BUF_A,RO_COO,0).xyz;
     //ro.xz *= rotate(mod(iTime,3.36)/3.36*TAU);
     vec3 lookat = vec3(0);
     mat3 cam = camera(ro, lookat, 0.);
@@ -198,8 +200,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         
         //col = mix(col, feed,0.1);
     }
+    //add PERHI textured sphere
     //if(sph.x < 100.) col += (txt1+txt2);
-    //col = txt2;
+    //col =txt1 + txt2;
     //fragColor = texelFetch(BUF_A,ivec2(0.02*fragCoord),0);
     fragColor.xyz = pow(col, vec3(.4545));
 }
