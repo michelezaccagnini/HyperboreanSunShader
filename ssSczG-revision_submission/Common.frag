@@ -27,7 +27,8 @@ const int PERHI_BLOCK_OFFSET = PONG_BLOCK.y+PONG_BLOCK_OFFSET;
 //block dimensions: x dimension, y dimension, y dim of sub-block, y dimension offset
 const ivec4 PERHI_BLOCK = ivec4(PERHI_POINTS, NUM_PERHI*2+1, NUM_PERHI,PERHI_BLOCK_OFFSET);
 const int PERHI_ENV_ROW = PERHI_BLOCK_OFFSET + PERHI_BLOCK.y-1;
-#define PERHI_SPHERE_RADIUS 4.5
+#define PERHI_SPHERE_RADIUS 6.5
+#define PERHI_Z_DISPLACE -5.
 
 //PERLO uniforms
 #define PERLO_POINTS 7
@@ -331,16 +332,26 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
           z = texelFetch(midi, ivec2(cc.z,chan*HEIGHT_CH_BLOCK+3),0).x,
        dist = texelFetch(midi, ivec2(cc.w,chan*HEIGHT_CH_BLOCK+3),0).x; 
     vec3 tar = vec3(0,0,10);
+    float sli = 0.5;
     if(song_sect < 2)
     {
         tar = (vec3(x,y,z)*2.-1.)*dist*RO_DIST_MULT;
     }
     else if( song_sect == 2)
     {
-        float ang = x * TAU;
-        tar = vec3(cos(ang),y,sin(ang))*dist*RO_DIST_MULT;
+        float revolutions = 8.;
+        float ang = y * TAU * revolutions;
+        sli = 0.1;
+        tar = vec3(cos(ang),0,sin(ang))*dist*RO_DIST_MULT;
     }
-    return slide(cur,tar, 0.5);
+    else if(song_sect == 4)
+    {
+        float revolutions = 1.;
+        float ang = y * TAU * revolutions;
+        sli = 0.05;
+        tar = vec3(cos(ang),sin(ang),0)*dist*RO_DIST_MULT;
+    }
+    return slide(cur,tar, sli);
 }
 
 float vel_note_on(sampler2D midi, int channel, int pitch, inout bool on) 
@@ -525,7 +536,7 @@ vec3 getPosPerhi(int id, vec4 data, sampler2D midi)
     float z = sect;
     //vec3 s = vec3(cos(x*TAU+sect*0.01+iTime*0.5),y, sin(x*TAU+sect*0.01+iTime*0.5));
     vec3 s = vec3(sect/3.,float(id)/8.*2.-0.5+pitch*0.5,0);
-    s = vec3(sect/3.+0.1,offs*3.+0.08+pitch*0.2,0);
+    s = vec3(sect/3.*0.4+0.1,offs*1.3+0.08+pitch*0.2,0);
     //s.xy += vec2(0.2,0.1);
     //s *= vec3(0.05,1,1);
     //s.x += x*2.-1;
@@ -688,7 +699,8 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float stretch = 1.;
         float x = float(id)/2.*2.-1.;
         pos = mix(pos,pos*vec3(0.),stretch_ind);
-        //pos.y += stretch_ind*5.;
+        pos.xz *= rotate(iTime*0.012);
+        pos.z += PERHI_Z_DISPLACE;
         return vec4(pos,0);
     }
     else if(block_id == 2)
