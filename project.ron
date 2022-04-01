@@ -1,0 +1,67 @@
+#![enable(implicit_some, unwrap_newtypes)]
+(
+	res: "1600x900",
+	shift_midi_beats: 0,
+	fps: 30,
+	fov: 60,
+	audio_input: r"mz - hyperborean sun mix alt 02 l2.wav",
+	midi_input: r"hyperborean_sun_temp2.mid",
+	shaders: {
+		"revision_submission": "ssSczG-revision_submission",
+	},
+	// shader_scale: 1.,
+	// eye_dir: (0.0, 0.0, -1.0),
+	// eye_up: (0.0, 1.0, 0.0),
+	inputs: [
+		// ( id: "my_cam", src: Cam(( name: "Camera Name", size: (1920, 1080), fps: 30 )) ),
+		// ( id: "my_vid", src: Vid(( path: r"folder\vid.mp4" )) ),
+		// ( id: "my_img", src: Img(r"folder\img.jpg") ),
+		// ( id: "my_cubemap", src: Cubemap(r"path\prefix\to\cubemap\face\images") ),
+	],
+	chains: [
+		(
+			id: "main",
+			inputs: [
+				// ( id: "my_cam_post_fx" ),
+			],
+			layers: [
+				(
+					fx: "revision_submission",
+					/*
+					cfg: {
+						"my_shader_param": "0.5",
+					},
+					*/
+				),
+			],
+		),
+		/*
+		(
+			id: "my_cam_post_fx",
+			inputs: [
+				( id: "my_cam" ),
+				// ( id: "my_vid" ),
+				// ( id: "my_img" ),
+				// ( id: "my_cubemap" ),
+			],
+			layers: [
+				(
+					fx: "my_special_effect",
+					cfg: {
+						"param_foo": "0.75",
+					},
+				),
+				(
+					fx: "other_shader",
+					cfg: {
+						"param_bar": "powi(1 - Ch0Cc0, 4)",
+						"param_baz": "Ch0Vel64",
+					},
+				),
+			],
+			scale: 1.,
+		),
+		*/
+	],
+	output: ( id: "main", cubemap: false ),
+)
