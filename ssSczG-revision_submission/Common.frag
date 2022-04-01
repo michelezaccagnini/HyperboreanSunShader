@@ -28,7 +28,7 @@ const int PERHI_BLOCK_OFFSET = PONG_BLOCK.y+PONG_BLOCK_OFFSET;
 const ivec4 PERHI_BLOCK = ivec4(PERHI_POINTS, NUM_PERHI*2+1, NUM_PERHI,PERHI_BLOCK_OFFSET);
 const int PERHI_ENV_ROW = PERHI_BLOCK_OFFSET + PERHI_BLOCK.y-1;
 #define PERHI_SPHERE_RADIUS 6.5
-#define PERHI_Z_DISPLACE -5.
+#define PERHI_Z_DISPLACE -0.
 
 //PERLO uniforms
 #define PERLO_POINTS 7
@@ -337,7 +337,7 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
     {
         tar = (vec3(x,y,z)*2.-1.)*dist*RO_DIST_MULT;
     }
-    else if( song_sect == 2)
+    else if( song_sect == 2 || song_sect == 3)
     {
         float revolutions = 8.;
         float ang = y * TAU * revolutions;
@@ -349,7 +349,7 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
         sli = 0.05;
-        tar = vec3(cos(ang),sin(ang),0)*dist*RO_DIST_MULT;
+        tar = vec3(cos(ang),0, sin(ang))*dist*RO_DIST_MULT;
     }
     return slide(cur,tar, sli);
 }
@@ -467,7 +467,6 @@ vec3 getTrajectory(int id, sampler2D midi)
     return pos;
 }
 
-
 vec3 getTrajectoryDrums(int id, int cc, sampler2D midi)
 {
     const int CC_offset = 50;
@@ -482,7 +481,6 @@ vec3 getTrajectoryDrums(int id, int cc, sampler2D midi)
                     getCCval(CC_ind_vel+1, CC_chan, midi));
     return pos;
 }
-
 
 vec3 getPosFlower(int id, float env, sampler2D midi)
 {
@@ -520,7 +518,7 @@ vec3 getPosPong(int id, float env, sampler2D midi)
     float longi = data.x*TAU*0.1;
     float lati =  data.y*TAU*0.8;
     float offs = float(id-8);
-    pos = vec3(offs*20.+data.x*0.3,0,offs*6.+data.y*0.3);
+    pos = vec3(offs*20.+data.x*0.3,0,offs*1.+data.y*0.3);
     pos.xz *= 0.3;
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
     vec3 spherical_pos = to_cartesian(pos.xz)*PERHI_SPHERE_RADIUS+data.z; 
@@ -654,6 +652,7 @@ vec3 animPongData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float stretch = 1.;
         float x = float(id)/2.*2.-1.;
         pos = pos*(1.+stretch_ind*1.);
+        pos.yz *= rotate(iTime*0.12);
         //pos.y += stretch_ind*5.;
         return pos;
     }

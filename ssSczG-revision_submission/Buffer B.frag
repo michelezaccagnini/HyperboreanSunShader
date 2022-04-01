@@ -60,7 +60,7 @@ HitInfo map(vec3 p)
         for(int id = 0; id < 8; id++)
         {
             vec3 hit_point = vec3(0), norm = vec3(0);
-            vec3 pos = texelFetch(BUF_A,ivec2(0,id+PONG_BLOCK_OFFSET),0).xyz;
+            vec3 pos = texelFetch(BUF_A,ivec2(0,id+PONG_BLOCK_OFFSET+PONG_BLOCK.z),0).xyz;
             float sph = length(p - pos) - 0.4;
             vec3 rop  = rope(p, id+PONG_BLOCK_OFFSET+PONG_BLOCK.z,BUF_A,0.01, hit_point, norm);
             rop.x = min(rop.x,sph);
