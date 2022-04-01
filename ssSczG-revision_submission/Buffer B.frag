@@ -40,6 +40,7 @@ HitInfo map(vec3 p)
     bool pong_on = song_sect > 0 && song_sect < 4;
     bool perhi_on = song_sect > 1 && song_sect < 5;
     bool drums_on = song_sect > 3;
+    bool bass_on = song_sect == 5;
     //flower
     if(flower_on)
     {
@@ -91,19 +92,6 @@ HitInfo map(vec3 p)
                 res.surf = hit_point, 
                 res.env = texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x;
             }
-            /*
-            float env = texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x;
-            if(env< 0.1) continue;
-            vec3 pos1 = to_cartesian(pos.xy)*4.;
-            vec3 pos2 = -to_cartesian(pos.xy)*4.; 
-            float cap  = sdCapsule(p, pos1,pos2,0.2);
-            if(cap < res.dist)
-            {
-                res.dist = cap, res.id = ivec2(3,id), res.uv = vec2(0), 
-                res.pos = p,
-                res.env = texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x;
-            }
-            */
         }
     }
     if(drums_on)
@@ -120,6 +108,23 @@ HitInfo map(vec3 p)
                 res.dist = rop.x, res.id = ivec2(4,id), res.uv = rop.yz, 
                 res.pos = p, res.surf = hit_point, 
                 res.env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
+            }
+        }
+    }
+    if(bass_on)
+    {
+        for(int id = 1; id < 8; id++)
+        {
+            vec3 hit_point = vec3(0), norm = vec3(0);
+            vec3 pos = texelFetch(BUF_A,ivec2(0,id+BASS_BLOCK_OFFSET),0).xyz;
+            float sph = length(p - pos) - 0.2;
+            vec3 rop  = rope(p, id+BASS_BLOCK_OFFSET+BASS_BLOCK.z,BUF_A,0.01, hit_point, norm);
+            rop.x = min(rop.x,sph);
+            if(rop.x < res.dist)
+            {
+                res.dist = rop.x, res.id = ivec2(4,id), res.uv = rop.yz, 
+                res.pos = p, res.surf = hit_point, 
+                res.env = texelFetch(BUF_A,ivec2(id,BASS_ENV_ROW),0).x;
             }
         }
     }
