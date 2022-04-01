@@ -27,7 +27,7 @@ const int PERHI_BLOCK_OFFSET = PONG_BLOCK.y+PONG_BLOCK_OFFSET;
 //block dimensions: x dimension, y dimension, y dim of sub-block, y dimension offset
 const ivec4 PERHI_BLOCK = ivec4(PERHI_POINTS, NUM_PERHI*2+1, NUM_PERHI,PERHI_BLOCK_OFFSET);
 const int PERHI_ENV_ROW = PERHI_BLOCK_OFFSET + PERHI_BLOCK.y-1;
-#define PERHI_SPHERE_RADIUS 6.5
+#define PERHI_SPHERE_RADIUS 5.
 #define PERHI_Z_DISPLACE -0.
 
 //PERLO uniforms
@@ -780,7 +780,7 @@ vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float stretch = 1.;
         float x = float(id)/2.*2.-1.;
         //pos = mix(pos,vec3(x,0,0),stretch_ind);
-        //pos *= 1.+stretch_ind*1.2;
+        pos *= 1.+stretch_ind*2.2;
         pos.z += stretch_ind*10.;
         return pos;
     }
