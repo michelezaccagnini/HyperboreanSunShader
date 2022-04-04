@@ -36,11 +36,11 @@ HitInfo map(vec3 p)
     HitInfo res;
     res.dist = MAX_DIST;
     int song_sect = getSongSection(MIDI);
-    bool flower_on = song_sect < 2 || song_sect > 4;
-    bool pong_on = song_sect > 0 && song_sect < 4;
-    bool perhi_on = song_sect > 1 && song_sect < 5;
-    bool drums_on = song_sect > 3;
-    bool bass_on = song_sect == 5;
+    bool flower_on = is_flower_on(song_sect);
+    bool pong_on = is_pong_on(song_sect);
+    bool perhi_on = is_perhi_on(song_sect);
+    bool drums_on = is_drums_on(song_sect);
+    bool bass_on = is_bass_on(song_sect);
     //flower
     if(flower_on)
     {
@@ -85,7 +85,7 @@ HitInfo map(vec3 p)
             float center_sph = length(p) -0.4;
             vec3 rop  = rope(p, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A,0.01, hit_point, norm);
             //rop.x = min(rop.x,sph);
-            rop.x = min(rop.x,center_sph);
+            //rop.x = min(rop.x,center_sph);
             if(rop.x < res.dist)
             {
                 res.dist = rop.x, res.id = ivec2(3,id), res.uv = rop.yz, res.pos = p, 
@@ -96,13 +96,13 @@ HitInfo map(vec3 p)
     }
     if(drums_on)
     {
-        for(int id = 1; id < 8; id++)
+        for(int id = 0; id < 8; id++)
         {
             vec3 hit_point = vec3(0), norm = vec3(0);
             vec3 pos = texelFetch(BUF_A,ivec2(0,id+DRUMS_BLOCK_OFFSET),0).xyz;
             float sph = length(p - pos) - 0.2;
             vec3 rop  = rope(p, id+DRUMS_BLOCK_OFFSET+DRUMS_BLOCK.z,BUF_A,0.01, hit_point, norm);
-            rop.x = min(rop.x,sph);
+            //rop.x = min(rop.x,sph);
             if(rop.x < res.dist)
             {
                 res.dist = rop.x, res.id = ivec2(4,id), res.uv = rop.yz, 
@@ -113,13 +113,13 @@ HitInfo map(vec3 p)
     }
     if(bass_on)
     {
-        for(int id = 1; id < 8; id++)
+        for(int id = 0; id < 8; id++)
         {
             vec3 hit_point = vec3(0), norm = vec3(0);
             vec3 pos = texelFetch(BUF_A,ivec2(0,id+BASS_BLOCK_OFFSET),0).xyz;
             float sph = length(p - pos) - 0.2;
             vec3 rop  = rope(p, id+BASS_BLOCK_OFFSET+BASS_BLOCK.z,BUF_A,0.01, hit_point, norm);
-            rop.x = min(rop.x,sph);
+            //rop.x = min(rop.x,sph);
             if(rop.x < res.dist)
             {
                 res.dist = rop.x, res.id = ivec2(4,id), res.uv = rop.yz, 

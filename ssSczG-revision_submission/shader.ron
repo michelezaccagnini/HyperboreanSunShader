@@ -138,7 +138,14 @@
 						vflip: true,
 					)),
 				),
-				None,
+				(
+					asset: Music(XTrackTure),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
 			],
 		),
 	},

@@ -28,7 +28,9 @@ const int PERHI_BLOCK_OFFSET = PONG_BLOCK.y+PONG_BLOCK_OFFSET;//38
 const ivec4 PERHI_BLOCK = ivec4(PERHI_POINTS, NUM_PERHI*2+1, NUM_PERHI,PERHI_BLOCK_OFFSET);
 const int PERHI_ENV_ROW = PERHI_BLOCK_OFFSET + PERHI_BLOCK.y-1;
 #define PERHI_SPHERE_RADIUS 5.
-#define PERHI_Z_DISPLACE -0.
+
+
+#define LAST_SECT_DISPLACE 10.
 
 //PERLO uniforms
 #define PERLO_POINTS 7
@@ -278,7 +280,6 @@ mat3 ortho(vec3 d)
     return mat3(d, a, cross(d,a));
 }
 
-
 vec2 asphere(vec3 x, vec3 dir, float R)
 {
     float a = dot(dir,dir),
@@ -346,14 +347,17 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
     float sli = 0.5;
     if(song_sect < 2)
     {
-        tar = (vec3(x,y,z)*2.-1.)*dist*RO_DIST_MULT;
-    }
-    else if( song_sect == 2 || song_sect == 3)
-    {
         float revolutions = 8.;
         float ang = y * TAU * revolutions;
         sli = 0.1;
-        tar = vec3(cos(ang),0,sin(ang))*dist*RO_DIST_MULT;
+        tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
+    }
+    else if( song_sect == 2 || song_sect == 3)
+    {
+        float revolutions = 1.;
+        float ang = y * TAU * revolutions;
+        sli = 0.1;
+        tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
     }
     else if(song_sect == 4)
     {
@@ -369,8 +373,21 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
         sli = 0.05;
         tar = vec3(cos(ang),0, sin(ang))*dist*RO_DIST_MULT;
     }
+    else if(song_sect > 5 )
+    {
+        float revolutions = 1.;
+        float ang = y * TAU * revolutions;
+        sli = 0.15;
+        tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
+    }
     return slide(cur,tar, sli);
 }
+
+bool is_flower_on(int song_sect) {return song_sect < 3 || song_sect == 8 || song_sect > 9;}
+bool is_pong_on(int song_sect)   {return song_sect > 1 && song_sect < 5;}
+bool is_perhi_on(int song_sect)  {return song_sect > 2 && all(notEqual(ivec3(song_sect),ivec3(4,10,11)));}
+bool is_drums_on(int song_sect)  {return song_sect > 4 && all(notEqual(ivec2(song_sect),ivec2(6,11   )));}
+bool is_bass_on(int song_sect)   {return any(equal(ivec3(song_sect),ivec3(7,8,9)));}
 
 float vel_note_on(sampler2D midi, int channel, int pitch, inout bool on) 
 {
@@ -495,7 +512,7 @@ vec3 getEnvelopeBass(ivec2 tex_coo, int pitch, int chan, float dur, sampler2D mi
 int getSongSection(sampler2D midi)
 {
     int section = int(getCCval(50,0,midi)*127.);
-    return section;
+    return section+1;
 }
 
 vec3 getTrajectory(int id, sampler2D midi)
@@ -561,6 +578,8 @@ vec3 getPosPong(int id, float env, sampler2D midi)
     pos.xz *= 0.3;
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
     vec3 spherical_pos = to_cartesian(pos.xz)*PERHI_SPHERE_RADIUS+data.z; 
+    spherical_pos.y += env;
+    spherical_pos.z -=5.;
 
     return false ? pos : spherical_pos;
 }
@@ -646,8 +665,11 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         //attach each stem to the center
         int id = tex_coo.y - sub_block*1;
         float stretch_ind = float(tex_coo.x)/frope_points;
-        vec3 p = texelFetch(text, tex_coo - ivec2(0,sub_block),0).xyz;
-        return mix(vec3(0), p , stretch_ind);
+        vec3 pos = texelFetch(text, tex_coo - ivec2(0,sub_block),0).xyz;
+        pos = mix(vec3(0), pos , stretch_ind);
+        int song_sect  = getSongSection(midi);
+        if(song_sect > 5) pos.z -= LAST_SECT_DISPLACE;
+        return pos;
     }
     else if(block_id == 2)
     {
@@ -665,7 +687,10 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         vec3 pos  = texelFetch(text,tex_coo - ivec2(0,sub_block),0).xyz;
         vec3 fulc = vec3(0);
         vec3 dir = max(normalize(pos - fulc),vec3(0.01));//texelFetch(text,tex_coo + ivec2(1,NUM_FLOWER_PETALS),0).xyz;
-        return  pos + dir*stretch_ind*1.;
+        pos += dir*stretch_ind*1.;
+        int song_sect  = getSongSection(midi);
+        if(song_sect > 5) pos.z -= LAST_SECT_DISPLACE;
+        return  pos;
     }
     //this row is just to get the envelope
     else if(block_id == 4) 
@@ -705,7 +730,7 @@ vec3 animPongData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float stretch = 1.;
         float x = float(id)/2.*2.-1.;
         pos = pos*(1.+stretch_ind*1.);
-        pos.yz *= rotate(iTime*0.12);
+        pos.yz *= rotate(RHO);
         //pos.y += stretch_ind*5.;
         return pos;
     }
@@ -752,14 +777,15 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float x = float(id)/2.*2.-1.;
         pos = mix(pos,pos*vec3(0.),stretch_ind);
         pos.xz *= rotate(iTime*0.012);
-        pos.z += PERHI_Z_DISPLACE;
+        int song_sect  = getSongSection(midi);
+        if(song_sect > 5) pos.z += LAST_SECT_DISPLACE;
         return vec4(pos,0);
     }
     else if(block_id == 2)
     {
         int id = tex_coo.x;
         int chan = id + chan_offset ;
-        float dur = 8., width =4.;
+        float dur = 3., width =4.;
         return getEnvelopeSector(id, chan, PERHI_ENV_ROW, dur, width, midi, text);
     } 
 }
@@ -835,6 +861,8 @@ vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         //pos = mix(pos,vec3(x,0,0),stretch_ind);
         pos *= 1.+stretch_ind*2.2;
         pos.z += stretch_ind*10.;
+        int song_sect  = getSongSection(midi);
+        if(song_sect > 5) pos.z -= LAST_SECT_DISPLACE;
         return pos;
     }
     else if(block_id == 2)
@@ -878,8 +906,10 @@ vec3 animBassData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float stretch = 1.;
         float x = float(id)/2.*2.-1.;
         //pos = mix(pos,vec3(x,0,0),stretch_ind);
-        pos *= 1.+stretch_ind*2.2;
-        pos.z -= stretch_ind*10.;
+        pos *= 1.+stretch_ind*1.2;
+        pos.z += stretch_ind*10.;
+        int song_sect  = getSongSection(midi);
+        if(song_sect > 5) pos.z += LAST_SECT_DISPLACE;
         return pos;
     }
     else if(block_id == 2)
