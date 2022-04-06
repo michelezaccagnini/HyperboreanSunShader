@@ -273,6 +273,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 sun2_pos = flower_sect_displ(song_sect);
     vec3 sun2 = is_flower_on(song_sect) ?  integrateLightFullView(ro-sun2_pos,rd,0.21,0.5)*FLOWER_COL_CENTER :  vec3(0);
     fragColor.xyz = pow(col+sun1+sun2, vec3(.4545));
+    // fragColor = texelFetch(iChannel2, ivec2(fragCoord.xy/iResolution.xy*vec2(128.,16.*5.)), 0);
 }
 
 

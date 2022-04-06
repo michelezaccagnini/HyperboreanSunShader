@@ -5,7 +5,7 @@
 	fps: 30,
 	fov: 60,
 	audio_input: r"mz - hyperborean sun mix alt 02 l2.wav",
-	midi_input: r"hyperborean_sun_temp2.mid",
+	midi_input: r"hyperborean_sun_temp11.mid",
 	shaders: {
 		"revision_submission": "ssSczG-revision_submission",
 	},
