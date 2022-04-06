@@ -347,7 +347,7 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
     float sli = 0.5;
     if(song_sect < 2)
     {
-        float revolutions = 8.;
+        float revolutions = 4.;
         float ang = y * TAU * revolutions;
         sli = 0.1;
         tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
@@ -364,14 +364,14 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
         sli = 0.05;
-        tar = vec3(cos(ang),0, sin(ang))*dist*RO_DIST_MULT;
+        tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
     }
     else if(song_sect == 5)
     {
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
         sli = 0.05;
-        tar = vec3(cos(ang),0, sin(ang))*dist*RO_DIST_MULT;
+        tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
     }
     else if(song_sect > 5 )
     {
@@ -385,7 +385,7 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
 
 bool is_flower_on(int song_sect) {return song_sect < 3 || song_sect == 8 || song_sect > 9;}
 bool is_pong_on(int song_sect)   {return song_sect > 1 && song_sect < 5;}
-bool is_perhi_on(int song_sect)  {return song_sect > 2 && all(notEqual(ivec3(song_sect),ivec3(4,10,11)));}
+bool is_perhi_on(int song_sect)  {return song_sect > 2 && all(notEqual(ivec3(song_sect),ivec3(4,11,12)));}
 bool is_drums_on(int song_sect)  {return song_sect > 4 && all(notEqual(ivec2(song_sect),ivec2(6,11   )));}
 bool is_bass_on(int song_sect)   {return any(equal(ivec3(song_sect),ivec3(7,8,9)));}
 
@@ -570,16 +570,16 @@ vec3 getPosPong(int id, float env, sampler2D midi)
     //data.x = 1.-data.x;
     data = pow(data,vec3(1.3));
     //data.y = pow(data.y,0.5);
-    env = smoothstep(0.051,0.3,env);
+    env = smoothstep(0.051,0.6,env);
     float longi = data.x*TAU*0.1;
     float lati =  data.y*TAU*0.8;
     float offs = float(id-8);
     pos = vec3(offs*20.+data.x*0.3,0,offs*1.+data.y*0.3);
     pos.xz *= 0.3;
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
-    vec3 spherical_pos = to_cartesian(pos.xz)*PERHI_SPHERE_RADIUS+data.z; 
-    spherical_pos.y += env;
-    spherical_pos.z -=5.;
+    vec3 spherical_pos = to_cartesian(pos.xz)*PERHI_SPHERE_RADIUS+data.z*2.; 
+    spherical_pos.y -= env*1.;
+    spherical_pos.z -=8.;
 
     return false ? pos : spherical_pos;
 }
