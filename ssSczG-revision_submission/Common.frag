@@ -13,7 +13,7 @@ const ivec4 FLOWER_BLOCK = ivec4(ROPE_POINTS,
 const int FLOWER_ENV_ROW = FLOWER_BLOCK.y-1;
 
 //Pong uniforms
-#define PONG_POINTS 8
+#define PONG_POINTS 7
 #define NUM_PONG 8
 const int PONG_BLOCK_OFFSET = FLOWER_BLOCK.y;//21
 //block dimensions: x dimension, y dimension, y dim of sub-block, y dimension offset
@@ -21,7 +21,7 @@ const ivec4 PONG_BLOCK = ivec4(PONG_POINTS,NUM_PONG*2+1, NUM_PONG,PONG_BLOCK_OFF
 const int PONG_ENV_ROW = PONG_BLOCK_OFFSET + PONG_BLOCK.y-1;
 
 //PERHI uniforms
-#define PERHI_POINTS 8
+#define PERHI_POINTS 7
 #define NUM_PERHI 8
 const int PERHI_BLOCK_OFFSET = PONG_BLOCK.y+PONG_BLOCK_OFFSET;//38
 //block dimensions: x dimension, y dimension, y dim of sub-block, y dimension offset
@@ -43,7 +43,7 @@ const int PERLO_ENV_ROW = PERLO_BLOCK_OFFSET + PERLO_BLOCK.y-1;
 
 
 //DRUMS uniforms
-#define DRUMS_POINTS 8
+#define DRUMS_POINTS 7
 #define NUM_DRUMS 8
 #define DRUMS_PITCH_OFFSET 23
 #define DRUMS_CHAN 15
@@ -64,7 +64,7 @@ const ivec2 RO_COO = ivec2(0,RO_BLOCK_OFFSET);
 #define RO_DIST_MULT 40.
 
 //Bass uniforms
-#define BASS_POINTS 8
+#define BASS_POINTS 7
 #define NUM_BASS 8
 #define BASS_PITCH_OFFSET 23
 #define BASS_CHAN 14 
@@ -317,21 +317,97 @@ vec3 rope(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 hit_point
             mt = transpose(m);
         vec3 c_point = mt*(p-point);
         
-        // const float span = 1./4.;
-        // float bez_ind = floor(float(i)/2.);
-        // vec2 lwise =vec2(t*span+bez_ind*span,t);
+        const float span = 1./4.;
+        float bez_ind = floor(float(i)/2.);
+        vec2 lwise =vec2(t*span+bez_ind*span,t);
+
+        float w = 0.1;
         
-        float d = dbox3(c_point, vec3(.1, .1, .1));
+        float d = dbox3(c_point, vec3(.1, .1, w));
         if(d < dist) 
         {
             nor = norm;
             hit_point = c_point;
+            uv = vec2(c_point.z*w+w*0.5,lwise.x);
         }
         dist =  min(dist,d);//smin(dist,d, 0.18);   
     }
     //uv not returned(add code)
     return vec3(dist, uv);
 }
+
+vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 hit_point, inout vec3 nor)
+{
+    float dist = 1000.;
+    vec2 uv;
+    for(int i = 0; i < ROPE_POINTS-2; i+=2)
+    {
+        vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
+        vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
+        vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
+        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
+        vec2 b = dtspline3(p,pp1,pp2,pp3);
+        float t = b.y;
+        vec3 norm  = nspline3(p,t,pp1,pp2,pp3);
+        vec3 point = xspline3(p,t,pp1,pp2,pp3);
+        mat3 m = ortho(norm),
+            mt = transpose(m);
+        vec3 c_point = mt*(p-point);
+        
+        const float span = 1./4.;
+        float bez_ind = floor(float(i)/2.);
+        vec2 lwise =vec2(t*span+bez_ind*span,t);
+        float l = smoothstep(0.2,0.7,lwise.x)+0.01;
+        
+        float d = dbox3(c_point, vec3(.01, .05, 0.1+sin(l*TAU*0.6)*.4));
+        if(d < dist) 
+        {
+            nor = norm;
+            hit_point = c_point;
+            uv = vec2(c_point.z*0.8+0.2,lwise.x);
+        }
+        dist =  min(dist,d);//smin(dist,d, 0.18);   
+    }
+    //uv not returned(add code)
+    return vec3(dist, uv);
+}
+
+vec3 rope_flower2(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 hit_point, inout vec3 nor)
+{
+    float dist = 1000.;
+    vec2 uv;
+    for(int i = 0; i < ROPE_POINTS-2; i+=2)
+    {
+        vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
+        vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
+        vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
+        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
+        vec2 b = dtspline3(p,pp1,pp2,pp3);
+        float t = b.y;
+        vec3 norm  = nspline3(p,t,pp1,pp2,pp3);
+        vec3 point = xspline3(p,t,pp1,pp2,pp3);
+        mat3 m = ortho(norm),
+            mt = transpose(m);
+        vec3 c_point = mt*(p-point);
+        
+        const float span = 1./4.;
+        float bez_ind = floor(float(i)/2.);
+        vec2 lwise =vec2(t*span+bez_ind*span,t);
+        float l = smoothstep(0.4,0.01,lwise.x)+0.11;
+        
+        float d = dbox3(c_point, vec3(.01, .05, 0.01+l*.2));
+        if(d < dist) 
+        {
+            nor = norm;
+            hit_point = c_point;
+            uv = vec2(c_point.z*0.1+0.1,lwise.x);
+        }
+        dist =  min(dist,d);//smin(dist,d, 0.18);   
+    }
+    //uv not returned(add code)
+    return vec3(dist, uv);
+}
+
 
 //==================================================================================================
 //Animations
@@ -658,7 +734,7 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             float env = texelFetch(text, ivec2(id, FLOWER_ENV_ROW),0).x;
             return getPosFlower(id,env, midi);
         } 
-        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.5);
+        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.6);
     }
     else if(block_id == 1)
     {
@@ -677,7 +753,7 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         //stream from last position of previous stream
         int id = tex_coo.y - sub_block*2;
         if (tex_coo.x == 0) return texelFetch(text,ivec2(rope_points-1,id),0).xyz;
-        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.5);
+        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.6);
     }
     else if(block_id == 3)
     {
@@ -687,7 +763,7 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         vec3 pos  = texelFetch(text,tex_coo - ivec2(0,sub_block),0).xyz;
         vec3 fulc = vec3(0);
         vec3 dir = max(normalize(pos - fulc),vec3(0.01));//texelFetch(text,tex_coo + ivec2(1,NUM_FLOWER_PETALS),0).xyz;
-        pos += dir*stretch_ind*1.;
+        pos += dir*stretch_ind*.15;
         int song_sect  = getSongSection(midi);
         if(song_sect > 5) pos.z -= LAST_SECT_DISPLACE;
         return  pos;
