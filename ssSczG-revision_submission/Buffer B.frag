@@ -51,12 +51,12 @@ HitInfo map(vec3 p)
             
             vec3 rope_center = rope_flower1(p,id+FLOWER_BLOCK.z  ,BUF_A,0.01,hit_point1,norm1);
             vec3 rope_attach = rope_flower2(p,id+FLOWER_BLOCK.z*3,BUF_A,0.01,hit_point2,norm2); 
-            float joint = length(p-texelFetch(BUF_A,ivec2(0,id+FLOWER_BLOCK.z*3),0).xyz)-0.1;
+            //float joint = length(p-texelFetch(BUF_A,ivec2(0,id+FLOWER_BLOCK.z*3),0).xyz)-0.1;
             vec3 rop = opU(rope_center,rope_attach);
             bool is_first = rope_center.x < rope_attach.x; 
             hit_point = is_first ? hit_point1 : hit_point2;
             norm = is_first ? norm1 : norm2 ;
-            rop.x = smin(joint,rop.x,0.7);
+            //rop.x = smin(joint,rop.x,0.7);
             if(rop.x < res.dist)
             {
                 res.dist = rop.x, res.id = ivec2(1,id), res.uv = rop.yz, 
@@ -177,7 +177,7 @@ vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
     //light_intensity =pow(light_intensity,.4545);
     float fres = clamp(1. - dot(hit.nor, -rd),0.,1.);
     vec3 col = fres*1.2*diff*vec3(pow(hit.env,.5)*5.)*hit.col*1.;
-    // /col =vec3(hit.env *3.+0.01);//diff*pow(hit.env,1.5)*1.+0.1;//max(col, vec3(0));
+    col *=vec3(hit.env *3.+0.01);//diff*pow(hit.env,1.5)*1.+0.1;//max(col, vec3(0));
 
     return col;
 }
@@ -192,7 +192,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     mat3 cam = camera(ro, lookat, 0.);
     vec3 rd = cam * normalize(vec3(uv,1));
     HitInfo hit = intersect(ro,rd);
-    hit.col =  hash31(float(hit.id)*0.003);
+    hit.col =  hash31(float(hit.id.x*8)*float(hit.id.y)*0.3);
     vec2 sph = asphere(ro,rd,PERHI_SPHERE_RADIUS);
     vec2 sph_uv_in = to_polar(ro+rd*sph.x);
     vec2 sph_uv_out = to_polar(ro+rd*sph.y);

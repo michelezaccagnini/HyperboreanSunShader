@@ -27,7 +27,7 @@ const int PERHI_BLOCK_OFFSET = PONG_BLOCK.y+PONG_BLOCK_OFFSET;//38
 //block dimensions: x dimension, y dimension, y dim of sub-block, y dimension offset
 const ivec4 PERHI_BLOCK = ivec4(PERHI_POINTS, NUM_PERHI*2+1, NUM_PERHI,PERHI_BLOCK_OFFSET);
 const int PERHI_ENV_ROW = PERHI_BLOCK_OFFSET + PERHI_BLOCK.y-1;
-#define PERHI_SPHERE_RADIUS 5.
+#define PERHI_SPHERE_RADIUS 5.5
 
 
 #define LAST_SECT_DISPLACE 10.
@@ -323,7 +323,7 @@ vec3 rope(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 hit_point
 
         float w = 0.1;
         
-        float d = dbox3(c_point, vec3(.1, .1, w));
+        float d = dbox3(c_point, vec3(.1, .3, w));
         if(d < dist) 
         {
             nor = norm;
@@ -359,7 +359,7 @@ vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 h
         vec2 lwise =vec2(t*span+bez_ind*span,t);
         float l = smoothstep(0.2,0.7,lwise.x)+0.01;
         
-        float d = dbox3(c_point, vec3(.01, .05, 0.1+sin(l*TAU*0.6)*.4));
+        float d = dbox3(c_point, vec3(.01, .08, 0.1+sin(l*TAU*0.55)*.4));
         if(d < dist) 
         {
             nor = norm;
@@ -395,7 +395,7 @@ vec3 rope_flower2(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 h
         vec2 lwise =vec2(t*span+bez_ind*span,t);
         float l = smoothstep(0.4,0.01,lwise.x)+0.11;
         
-        float d = dbox3(c_point, vec3(.01, .05, 0.01+l*.2));
+        float d = dbox3(c_point, vec3(.01, .01, 0.01));
         if(d < dist) 
         {
             nor = norm;
@@ -752,7 +752,9 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         //petals
         //stream from last position of previous stream
         int id = tex_coo.y - sub_block*2;
-        if (tex_coo.x == 0) return texelFetch(text,ivec2(rope_points-1,id),0).xyz;
+        float env = pow(texelFetch(text,ivec2(id, FLOWER_ENV_ROW),0).x,0.5);
+        int pos_on_r = int(float(rope_points)*(1.-env*1.));
+        if (tex_coo.x == 0) return texelFetch(text,ivec2(pos_on_r,id),0).xyz;
         else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.6);
     }
     else if(block_id == 3)
@@ -763,7 +765,7 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         vec3 pos  = texelFetch(text,tex_coo - ivec2(0,sub_block),0).xyz;
         vec3 fulc = vec3(0);
         vec3 dir = max(normalize(pos - fulc),vec3(0.01));//texelFetch(text,tex_coo + ivec2(1,NUM_FLOWER_PETALS),0).xyz;
-        pos += dir*stretch_ind*.15;
+        pos += dir*stretch_ind*1.15;
         int song_sect  = getSongSection(midi);
         if(song_sect > 5) pos.z -= LAST_SECT_DISPLACE;
         return  pos;
@@ -849,10 +851,9 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float stretch_ind = float(tex_coo.x)/(frope_points-1.);
         vec3 pos = texelFetch(text,tex_coo-ivec2(0,block.z),0).xyz;
         pos = to_cartesian(pos.xy)*PERHI_SPHERE_RADIUS;
-        float stretch = 1.;
         float x = float(id)/2.*2.-1.;
         pos = mix(pos,pos*vec3(0.),stretch_ind);
-        pos.xz *= rotate(iTime*0.012);
+        // /pos.xz *= rotate(iTime*0.012);
         int song_sect  = getSongSection(midi);
         if(song_sect > 5) pos.z += LAST_SECT_DISPLACE;
         return vec4(pos,0);
