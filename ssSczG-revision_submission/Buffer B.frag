@@ -77,7 +77,7 @@ HitInfo map(vec3 p)
             float env = texelFetch(BUF_A,ivec2(id,PONG_ENV_ROW),0).x;
             vec3 pos = texelFetch(BUF_A,ivec2(0,id+PONG_BLOCK_OFFSET+PONG_BLOCK.z),0).xyz;
             //float sph = length(p - pos) - 0.4;
-            vec3 rop  = rope(p, id+PONG_BLOCK_OFFSET+PONG_BLOCK.z,BUF_A,env, hit_point, norm);
+            vec3 rop  = ropePong(p, id+PONG_BLOCK_OFFSET+PONG_BLOCK.z,BUF_A,env, hit_point, norm);
             //rop.x = min(rop.x,sph);
             if(rop.x < res.dist)
             {
@@ -90,11 +90,12 @@ HitInfo map(vec3 p)
     }
     if(perhi_on )
     {
+        ivec2 o_sect = any(equal(ivec2(song_sect),ivec2(2,4))) ? ivec2(0 ,4) : ivec2(0,8) ; 
         vec3 hit_point = vec3(0), norm = vec3(0);
-        for(int id = 0; id < 8; id++)
+        for(int id = o_sect.x; id < o_sect.y; id++)
         {
             float env = texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x;
-            if(env< 0.01) continue;
+            //if(env< 0.01) continue;
             vec3 pos = texelFetch(BUF_A,ivec2(0,id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z),0).xyz;
             float sph = length(p - pos) - 0.4;
             float center_sph = length(p) -0.4;
