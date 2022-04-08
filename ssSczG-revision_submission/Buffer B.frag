@@ -1,7 +1,8 @@
 #define FEEDBACK iChannel0
 #define BUF_A iChannel1
 #define MIDI iChannel2
-#define BUF_C iChannel3
+#define TEXTURE iChannel3
+
 
 /*
 musical data explanation:
@@ -45,51 +46,59 @@ HitInfo map(vec3 p)
     //flower
     if(flower_on)
     {
-        vec3 hit_point1 = vec3(0), hit_point2 = vec3(0), norm1 = vec3(0), norm2 = vec3(0);
+        vec3 hit_point = vec3(0),
+             hit_point2 = vec3(0),
+             norm = vec3(0), 
+             norm2 = vec3(0);
         for(int id = 0; id < 5; id++)
         {
             
-            vec3 rope_center = rope_flower1(p,id+FLOWER_BLOCK.z  ,BUF_A,0.01,hit_point1,norm1);
+            vec3 rope_center = rope_flower1(p,id+FLOWER_BLOCK.z  ,BUF_A,0.01,hit_point,norm);
             vec3 rope_attach = rope_flower2(p,id+FLOWER_BLOCK.z*3,BUF_A,0.01,hit_point2,norm2); 
             //float joint = length(p-texelFetch(BUF_A,ivec2(0,id+FLOWER_BLOCK.z*3),0).xyz)-0.1;
             vec3 rop = opU(rope_center,rope_attach);
             bool is_first = rope_center.x < rope_attach.x; 
-            hit_point = is_first ? hit_point1 : hit_point2;
-            norm = is_first ? norm1 : norm2 ;
+            hit_point = is_first ? hit_point : hit_point2;
+            norm = is_first ? norm : norm2 ;
             //rop.x = smin(joint,rop.x,0.7);
             if(rop.x < res.dist)
             {
                 res.dist = rop.x, res.id = ivec2(1,id), res.uv = rop.yz, 
                 res.pos = p, res.surf = hit_point,  res.nor = norm;
-                res.env = texelFetch(BUF_A,ivec2(id,FLOWER_ENV_ROW),0).x;            }
+                res.env = texelFetch(BUF_A,ivec2(id,FLOWER_ENV_ROW),0).x;            
+            }
         }
     }
     if(pong_on)
     {
+        vec3 hit_point = vec3(0), norm = vec3(0);
         for(int id = 0; id < 8; id++)
         {
+            float env = texelFetch(BUF_A,ivec2(id,PONG_ENV_ROW),0).x;
             vec3 pos = texelFetch(BUF_A,ivec2(0,id+PONG_BLOCK_OFFSET+PONG_BLOCK.z),0).xyz;
-            float sph = length(p - pos) - 0.4;
-            vec3 rop  = rope(p, id+PONG_BLOCK_OFFSET+PONG_BLOCK.z,BUF_A,0.01, hit_point, norm);
-            rop.x = min(rop.x,sph);
+            //float sph = length(p - pos) - 0.4;
+            vec3 rop  = rope(p, id+PONG_BLOCK_OFFSET+PONG_BLOCK.z,BUF_A,env, hit_point, norm);
+            //rop.x = min(rop.x,sph);
             if(rop.x < res.dist)
             {
                 res.dist = rop.x, res.id = ivec2(2,id), 
                 res.uv = rop.yz, res.pos = p, res.surf = hit_point, 
                 res.env = texelFetch(BUF_A,ivec2(id,PONG_ENV_ROW),0).x;
+                res.surf = hit_point, res.nor = norm;
             }
         }
     }
     if(perhi_on )
     {
+        vec3 hit_point = vec3(0), norm = vec3(0);
         for(int id = 0; id < 8; id++)
         {
-           float env = pow(texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x,0.5);
+            float env = texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x;
             if(env< 0.01) continue;
             vec3 pos = texelFetch(BUF_A,ivec2(0,id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z),0).xyz;
             float sph = length(p - pos) - 0.4;
             float center_sph = length(p) -0.4;
-            vec3 rop  = rope(p, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A,0.01, hit_point, norm);
+            vec3 rop  = ropePerhi(p, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A,0.01, env, hit_point, norm);
             //rop.x = min(rop.x,sph);
             //rop.x = min(rop.x,center_sph);
             if(rop.x < res.dist)
@@ -97,27 +106,33 @@ HitInfo map(vec3 p)
                 res.dist = rop.x, res.id = ivec2(3,id), res.uv = rop.yz, res.pos = p, 
                 res.surf = hit_point, 
                 res.env = texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x;
+                res.surf = hit_point, res.nor = norm;
             }
         }
     }
     if(drums_on)
     {
+        vec3 hit_point = vec3(0), norm = vec3(0);
         for(int id = 0; id < 8; id++)
         {
             vec3 pos = texelFetch(BUF_A,ivec2(0,id+DRUMS_BLOCK_OFFSET),0).xyz;
+            float env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
             float sph = length(p - pos) - 0.2;
-            vec3 rop  = rope(p, id+DRUMS_BLOCK_OFFSET+DRUMS_BLOCK.z,BUF_A,0.01, hit_point, norm);
+            vec3 rop  = ropeDrums(p, id+DRUMS_BLOCK_OFFSET+DRUMS_BLOCK.z,BUF_A,0.01, env, hit_point, norm);
             //rop.x = min(rop.x,sph);
             if(rop.x < res.dist)
             {
                 res.dist = rop.x, res.id = ivec2(4,id), res.uv = rop.yz, 
                 res.pos = p, res.surf = hit_point, 
                 res.env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
+                res.surf = hit_point, res.nor = norm;
+
             }
         }
     }
     if(bass_on)
     {
+        vec3 hit_point = vec3(0), norm = vec3(0);
         for(int id = 0; id < 8; id++)
         {
             vec3 pos = texelFetch(BUF_A,ivec2(0,id+BASS_BLOCK_OFFSET),0).xyz;
@@ -129,6 +144,7 @@ HitInfo map(vec3 p)
                 res.dist = rop.x, res.id = ivec2(4,id), res.uv = rop.yz, 
                 res.pos = p, res.surf = hit_point, 
                 res.env = texelFetch(BUF_A,ivec2(id,BASS_ENV_ROW),0).x;
+                res.surf = hit_point, res.nor = norm;
             }
         }
     }
@@ -166,20 +182,19 @@ vec3 normal( in vec3 pos)
 
 vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
 { 
-    lig_pos = vec3(1,10,0);//texelFetch(BUF_A, ivec2(0,hit.id+2),0).xyz;
     vec3 diff = max(0.,dot(hit.surf, lig_pos)*0.5+0.5)*vec3(0.2,1.12,1.26);
     //reflect
     vec3 refl = reflect(lig_pos,hit.pos);
     vec3 spec_lig = vec3(clamp(dot(rd, refl),0.,1.));
-    float light_distance = smoothstep(.1,1.01, length(lig_pos- hit.pos)*.1)*10.2;
-    float falloff = 1.15;
+    float light_distance = smoothstep(.1,1.01, length(lig_pos- hit.pos)*.1)*1.2;
+    float falloff = .15;
     float light_intensity = clamp(falloff/pow(light_distance,0.42),0,1);
     //light_intensity =pow(light_intensity,.4545);
     float fres = clamp(1. - dot(hit.nor, -rd),0.,1.);
-    vec3 col = fres*1.2*diff*vec3(pow(hit.env,.5)*5.)*hit.col*1.;
-    col *=vec3(hit.env *3.+0.01);//diff*pow(hit.env,1.5)*1.+0.1;//max(col, vec3(0));
-
-    return col;
+    vec3 col = fres*0.2*diff*vec3(pow(hit.env,.5)*5.)*hit.col*1.;
+    col *=vec3(hit.env *3.+0.1);//diff*pow(hit.env,1.5)*1.+0.1;//max(col, vec3(0));
+    vec3 txt = texture(TEXTURE,hit.uv*0.01).xyz;
+    return mix(col,max(col,txt),0.4);
 }
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
@@ -193,11 +208,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 rd = cam * normalize(vec3(uv,1));
     HitInfo hit = intersect(ro,rd);
     hit.col =  hash31(float(hit.id.x*8)*float(hit.id.y)*0.3);
-    vec2 sph = asphere(ro,rd,PERHI_SPHERE_RADIUS);
-    vec2 sph_uv_in = to_polar(ro+rd*sph.x);
-    vec2 sph_uv_out = to_polar(ro+rd*sph.y);
-    vec3 txt1 = texture(BUF_C,sph_uv_in).xyz;
-    vec3 txt2 = texture(BUF_C,sph_uv_out).xyz;
     //hit.env = texelFetch(BUF_A,ivec2(hit.id,FLOWER_ENV_ROW),0).x;
     vec3 col = vec3(0);
     if(hit.dist < 10.)

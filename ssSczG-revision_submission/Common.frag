@@ -27,7 +27,7 @@ const int PERHI_BLOCK_OFFSET = PONG_BLOCK.y+PONG_BLOCK_OFFSET;//38
 //block dimensions: x dimension, y dimension, y dim of sub-block, y dimension offset
 const ivec4 PERHI_BLOCK = ivec4(PERHI_POINTS, NUM_PERHI*2+1, NUM_PERHI,PERHI_BLOCK_OFFSET);
 const int PERHI_ENV_ROW = PERHI_BLOCK_OFFSET + PERHI_BLOCK.y-1;
-#define PERHI_SPHERE_RADIUS 5.5
+#define PERHI_SPHERE_RADIUS 4.5
 
 
 #define LAST_SECT_DISPLACE 10.
@@ -324,6 +324,115 @@ vec3 rope(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 hit_point
         float w = 0.1;
         
         float d = dbox3(c_point, vec3(.1, .3, w));
+        if(d < dist) 
+        {
+            nor = norm;
+            hit_point = c_point;
+            uv = vec2(c_point.z*w+w*0.5,lwise.x);
+        }
+        dist =  min(dist,d);//smin(dist,d, 0.18);   
+    }
+    //uv not returned(add code)
+    return vec3(dist, uv);
+}
+
+vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float thick, float env, inout vec3 hit_point, inout vec3 nor)
+{
+    float dist = 1000.;
+    vec2 uv;
+    for(int i = 0; i < ROPE_POINTS-2; i+=2)
+    {
+        vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
+        vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
+        vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
+        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
+        vec2 b = dtspline3(p,pp1,pp2,pp3);
+        float t = b.y;
+        vec3 norm  = nspline3(p,t,pp1,pp2,pp3);
+        vec3 point = xspline3(p,t,pp1,pp2,pp3);
+        mat3 m = ortho(norm),
+            mt = transpose(m);
+        vec3 c_point = mt*(p-point);
+        
+        const float span = 1./4.;
+        float bez_ind = floor(float(i)/2.);
+        vec2 lwise =vec2(t*span+bez_ind*span,t);
+        float w =smoothstep(0.4,0.,abs(lwise.x-env))*0.2+0.1*smoothstep(0.2,0.4,lwise.x);
+        
+        float d = dbox3(c_point, vec3(.1, w*0.3+0.1, w));
+        if(d < dist) 
+        {
+            nor = norm;
+            hit_point = c_point;
+            uv = vec2(c_point.z*w+w*0.5,lwise.x);
+        }
+        dist =  min(dist,d);//smin(dist,d, 0.18);   
+    }
+    //uv not returned(add code)
+    return vec3(dist, uv);
+}
+
+vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point, inout vec3 nor)
+{
+    float dist = 1000.;
+    vec2 uv;
+    for(int i = 0; i < ROPE_POINTS-2; i+=2)
+    {
+        vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
+        vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
+        vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
+        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
+        vec2 b = dtspline3(p,pp1,pp2,pp3);
+        float t = b.y;
+        vec3 norm  = nspline3(p,t,pp1,pp2,pp3);
+        vec3 point = xspline3(p,t,pp1,pp2,pp3);
+        mat3 m = ortho(norm),
+            mt = transpose(m);
+        vec3 c_point = mt*(p-point);
+        
+        const float span = 1./4.;
+        float bez_ind = floor(float(i)/2.);
+        vec2 lwise =vec2(t*span+bez_ind*span,t);
+
+        float w =smoothstep(0.4,0.,abs(lwise.x-env))*0.2+0.1*smoothstep(0.2,0.4,lwise.x);
+        
+        float d = dbox3(c_point, vec3(.1, .3, w));
+        if(d < dist) 
+        {
+            nor = norm;
+            hit_point = c_point;
+            uv = vec2(c_point.z*w+w*0.5,lwise.x);
+        }
+        dist =  min(dist,d);//smin(dist,d, 0.18);   
+    }
+    //uv not returned(add code)
+    return vec3(dist, uv);
+}
+
+vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float thick, float env, inout vec3 hit_point, inout vec3 nor)
+{
+    float dist = 1000.;
+    vec2 uv;
+    for(int i = 0; i < ROPE_POINTS-2; i+=2)
+    {
+        vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
+        vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
+        vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
+        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
+        vec2 b = dtspline3(p,pp1,pp2,pp3);
+        float t = b.y;
+        vec3 norm  = nspline3(p,t,pp1,pp2,pp3);
+        vec3 point = xspline3(p,t,pp1,pp2,pp3);
+        mat3 m = ortho(norm),
+            mt = transpose(m);
+        vec3 c_point = mt*(p-point);
+        
+        const float span = 1./4.;
+        float bez_ind = floor(float(i)/2.);
+        vec2 lwise =vec2(t*span+bez_ind*span,t);
+
+        float w =smoothstep(0.4,0.,abs(lwise.x-(1.-pow(env,0.5))));//*0.2+0.4*smoothstep(0.2,0.4,lwise.x);
+        float d = dbox3(c_point, vec3(.1, w*0.2+0.15, w));
         if(d < dist) 
         {
             nor = norm;
@@ -840,9 +949,9 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             vec4 data = texelFetch(text, ivec2(id, PERHI_ENV_ROW),0);
             vec3 cur = texelFetch(text,tex_coo,0).xyz;
             vec3 tar = getPosPerhi(id+chan_offset,data, midi);
-            return vec4(slide(tar, cur, 0.2),0);
+            return vec4(slide(tar, cur, 0.6),0);
         } 
-        else  return iFrame < 10 ? vec4(1) :  pix_stream4(tex_coo,text,0.5);
+        else  return iFrame < 10 ? vec4(1) :  pix_stream4(tex_coo,text,0.8);
     }
     else if(block_id == 1)
     {
