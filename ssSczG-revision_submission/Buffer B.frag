@@ -240,6 +240,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     }
     vec3 sun = integrateLightFullView(ro,rd,0.051,1.)*vec3(0.9451, 0.8549, 0.0392);
     fragColor.xyz = pow(col+sun, vec3(.4545));
+    // fragColor = texelFetch(iChannel2, ivec2(fragCoord.xy/iResolution.xy*vec2(128.,16.*5.)), 0);
 }
 
 
