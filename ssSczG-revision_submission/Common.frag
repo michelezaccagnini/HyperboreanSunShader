@@ -27,7 +27,7 @@ const int PERHI_BLOCK_OFFSET = PONG_BLOCK.y+PONG_BLOCK_OFFSET;//38
 //block dimensions: x dimension, y dimension, y dim of sub-block, y dimension offset
 const ivec4 PERHI_BLOCK = ivec4(PERHI_POINTS, NUM_PERHI*2+1, NUM_PERHI,PERHI_BLOCK_OFFSET);
 const int PERHI_ENV_ROW = PERHI_BLOCK_OFFSET + PERHI_BLOCK.y-1;
-#define PERHI_SPHERE_RADIUS 4.5
+#define PERHI_SPHERE_RADIUS 5.5
 
 
 #define LAST_SECT_DISPLACE 10.
@@ -53,6 +53,7 @@ const ivec4 DRUMS_BLOCK = ivec4(DRUMS_POINTS, NUM_DRUMS*2+1, NUM_DRUMS,DRUMS_BLO
 const int DRUMS_ENV_ROW = DRUMS_BLOCK_OFFSET + DRUMS_BLOCK.y-1;
 const int[NUM_DRUMS] DRUMS_TIME_WIDTH = int[NUM_DRUMS](3,4,3,3,4,3,3,3);
 #define DRUM_TUBE_RADIUS 6.
+#define DRUMS_LENGTH 1.2
 
 
 //Camera uniforms
@@ -72,6 +73,7 @@ const int BASS_BLOCK_OFFSET = RO_BLOCK.y + RO_BLOCK_OFFSET;
 const ivec4 BASS_BLOCK = ivec4(BASS_POINTS, NUM_BASS*2+1, NUM_BASS, BASS_BLOCK_OFFSET);
 const int BASS_ENV_ROW = BASS_BLOCK_OFFSET + BASS_BLOCK.y - 1;
 #define BASS_TUBE_RADIUS 8.
+#define BASS_LENGTH 0.8
 
 
 //inner sphere
@@ -294,9 +296,9 @@ vec2 asphere(vec3 x, vec3 dir, float R)
 ===================================================================================
 */
 
-float smin( float a, float b, float k ) 
+float smin( float a, float b, float k , inout float h ) 
 {
-    float h = clamp( 0.5+0.5*(b-a)/k, 0., 1. );
+    h = clamp( 0.5+0.5*(b-a)/k, 0., 1. );
     return mix( b, a, h ) - k*h*(1.0-h);
 }
 vec3 rope(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 hit_point, inout vec3 nor)
@@ -357,9 +359,10 @@ vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float thick, float env, inou
         const float span = 1./4.;
         float bez_ind = floor(float(i)/2.);
         vec2 lwise =vec2(t*span+bez_ind*span,t);
-        float w =smoothstep(0.4,0.,abs(lwise.x-env))*0.2+0.1*smoothstep(0.2,0.4,lwise.x);
+        float l = clamp(pow(lwise.x,1.),0.,1.);
+        float w =smoothstep(0.4,0.,abs(l-pow(env,0.5)))*smoothstep(0.5,0.7,l);
         
-        float d = dbox3(c_point, vec3(.1, w*0.3+0.1, w));
+        float d = dbox3(c_point, vec3(.1, w*0.3+0.11, w*0.3+0.09));
         if(d < dist) 
         {
             nor = norm;
@@ -430,9 +433,9 @@ vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float thick, float env, inou
         const float span = 1./4.;
         float bez_ind = floor(float(i)/2.);
         vec2 lwise =vec2(t*span+bez_ind*span,t);
-
-        float w =smoothstep(0.4,0.,abs(lwise.x-(1.-pow(env,0.5))));//*0.2+0.4*smoothstep(0.2,0.4,lwise.x);
-        float d = dbox3(c_point, vec3(.1, w*0.2+0.15, w));
+        float l = pow(lwise.x,0.7);
+        float w =smoothstep(0.4,0.,abs(l-(1.-pow(env,0.5))))*0.8*smoothstep(0.8,0.6, l);//*0.2+0.4*smoothstep(0.2,0.4,lwise.x);
+        float d = dbox3(c_point, vec3(.1, w*0.2+0.15, w+0.05));
         if(d < dist) 
         {
             nor = norm;
@@ -569,7 +572,7 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
 }
 
 bool is_flower_on(int song_sect) {return song_sect < 2 || song_sect == 8 || song_sect > 9;}
-bool is_pong_on(int song_sect)   {return song_sect > 0 && song_sect < 5;}
+bool is_pong_on(int song_sect)   {return song_sect > 0 && song_sect < 4;}
 bool is_perhi_on(int song_sect)  {return song_sect > 1 && all(notEqual(ivec3(song_sect),ivec3(3,11,12)));}
 bool is_drums_on(int song_sect)  {return song_sect > 3 && all(notEqual(ivec2(song_sect),ivec2(6,11   )));}
 bool is_bass_on(int song_sect)   {return any(equal(ivec3(song_sect),ivec3(7,8,9)));}
@@ -784,17 +787,6 @@ vec3 getPosPerhi(int id, vec4 data, sampler2D midi)
     return s;
 }
 
-vec3 getPosPerlo(int id, vec2 data, sampler2D midi)
-{
-    float env = data.x, pitch = data.y;
-    const float perlo_time_width = 4.;
-    float sect = get_time_sector(iTime,perlo_time_width );
-    float x = float(id)/4.*2.-1.;
-    float y = pitch*2.-1.;
-    float z = sect;
-    return vec3(x,y,z);
-}
-
 vec3 getPosDrums(int id, float env, sampler2D midi)
 {
     float drums_time_width = DRUMS_TIME_WIDTH[id];
@@ -852,8 +844,6 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float stretch_ind = float(tex_coo.x)/frope_points;
         vec3 pos = texelFetch(text, tex_coo - ivec2(0,sub_block),0).xyz;
         pos = mix(vec3(0), pos , stretch_ind);
-        int song_sect  = getSongSection(midi);
-        if(song_sect > 5) pos.z -= LAST_SECT_DISPLACE;
         return pos;
     }
     else if(block_id == 2)
@@ -875,8 +865,7 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         vec3 fulc = vec3(0);
         vec3 dir = max(normalize(pos - fulc),vec3(0.01));//texelFetch(text,tex_coo + ivec2(1,NUM_FLOWER_PETALS),0).xyz;
         pos += dir*stretch_ind*1.15;
-        int song_sect  = getSongSection(midi);
-        if(song_sect > 5) pos.z -= LAST_SECT_DISPLACE;
+
         return  pos;
     }
     //this row is just to get the envelope
@@ -961,9 +950,7 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         pos = to_cartesian(pos.xy)*PERHI_SPHERE_RADIUS;
         float x = float(id)/2.*2.-1.;
         pos = mix(pos,pos*vec3(0.),stretch_ind);
-        // /pos.xz *= rotate(iTime*0.012);
-        int song_sect  = getSongSection(midi);
-        if(song_sect > 5) pos.z += LAST_SECT_DISPLACE;
+        pos.xz *= rotate(iTime*0.012);
         return vec4(pos,0);
     }
     else if(block_id == 2)
@@ -973,44 +960,6 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float dur = 3., width =4.;
         return getEnvelopeSector(id, chan, PERHI_ENV_ROW, dur, width, midi, text);
     } 
-}
-
-vec3 animPerloData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
-{
-    int rope_points = block.x, sub_block = block.z, tot_block = block.y, block_offset = block.w;
-    float frope_points = float(rope_points);
-    int block_id = int(float(tex_coo.y-block_offset+1)/float(sub_block));
-    // perlo is on midi chans 0-4
-    const int chan_offset = 0;
-    //return vec3(block_id == 1 ? 1 : 0);
-    if(block_id == 0)
-    {
-        //free flowing positions, not grounded to the center
-        //get pos on first row pixel and transmit it to following pixels 
-        if (tex_coo.x == 0)
-        {
-            int id = tex_coo.y - block_offset;
-            //get env pitch and time sector
-            vec2 data = texelFetch(text, ivec2(id, PERLO_ENV_ROW),0).xz;
-            return getPosPerlo(id+chan_offset,data, midi);
-        } 
-        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.5);
-    }
-    else if(block_id == 1)
-    {
-        float stretch_ind = float(tex_coo.x)/frope_points;
-        vec3 pos = texelFetch(text,tex_coo-ivec2(0,PERLO_BLOCK.z),0).xyz;
-        float stretch = 1.;
-        pos.y += stretch_ind*stretch;
-        return pos;
-    }
-    else if(block_id == 2)
-    {
-        int id = tex_coo.x;
-        int chan = id + chan_offset;
-        return getEnvelope(id, chan, PERLO_ENV_ROW, 5., midi, text);
-    } 
-
 }
 
 vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
@@ -1044,8 +993,8 @@ vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float stretch = 1.;
         float x = float(id)/2.*2.-1.;
         //pos = mix(pos,vec3(x,0,0),stretch_ind);
-        pos *= 1.+stretch_ind*2.2;
-        pos.z += stretch_ind*10.;
+        pos *= 1.+stretch_ind*DRUMS_LENGTH;
+        pos.z += stretch_ind*1.2;
         int song_sect  = getSongSection(midi);
         if(song_sect > 5) pos.z -= LAST_SECT_DISPLACE;
         return pos;
@@ -1091,10 +1040,8 @@ vec3 animBassData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float stretch = 1.;
         float x = float(id)/2.*2.-1.;
         //pos = mix(pos,vec3(x,0,0),stretch_ind);
-        pos *= 1.+stretch_ind*1.2;
+        pos *= 1.+stretch_ind*BASS_LENGTH;
         pos.z += stretch_ind*10.;
-        int song_sect  = getSongSection(midi);
-        if(song_sect > 5) pos.z += LAST_SECT_DISPLACE;
         return pos;
     }
     else if(block_id == 2)

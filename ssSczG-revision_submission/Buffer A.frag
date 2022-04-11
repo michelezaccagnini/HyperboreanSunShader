@@ -25,7 +25,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     bool flower_on = is_flower_on(song_sect) && iCoo.y < PONG_BLOCK_OFFSET ;
     bool pong_on   = is_pong_on(song_sect) && iCoo.y >= PONG_BLOCK_OFFSET && iCoo.y < PERHI_BLOCK_OFFSET;
     bool perhi_on  = is_perhi_on(song_sect) && iCoo.y >= PERHI_BLOCK_OFFSET && iCoo.y < PERLO_BLOCK_OFFSET;
-    //bool perlo_on  = is_drums_on(song_sect) && iCoo.y >= PERLO_BLOCK_OFFSET && iCoo.y < DRUMS_BLOCK_OFFSET;
     bool drums_on  = is_drums_on(song_sect) && iCoo.y >= DRUMS_BLOCK_OFFSET && iCoo.y < RO_BLOCK_OFFSET;
     bool ro_on     = iCoo == ivec2(0,RO_COO.y);
     bool bass_on  = is_bass_on(song_sect) && iCoo.y >= BASS_BLOCK_OFFSET;
@@ -33,7 +32,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     else if(flower_on)  fragColor.xyz =  true? animFlowerData(iCoo,FLOWER_BLOCK,MIDI,FEEDBACK):vec3(0.11);     
     else if(pong_on)    fragColor.xyz =  true? animPongData(iCoo,PONG_BLOCK,MIDI,FEEDBACK)  : vec3(1,0,0);//
     else if(perhi_on)   fragColor     =  true? animPerhiData(iCoo,PERHI_BLOCK,MIDI,FEEDBACK) : vec4(0,1,0,0);//
-    //else if(perlo_on) fragColor.xyz =  true? animPerloData(iCoo,PERLO_BLOCK,MIDI,FEEDBACK) : vec3(1,1,0);//
     else if(drums_on)   fragColor.xyz =  true ? animDrumsData(iCoo,DRUMS_BLOCK,MIDI,FEEDBACK) : vec3(0,1,1);//
     else if(bass_on)    fragColor.xyz =  true ? animBassData(iCoo,BASS_BLOCK,MIDI,FEEDBACK) : vec3(0,0.2,1);//    
     }
