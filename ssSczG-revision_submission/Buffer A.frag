@@ -16,7 +16,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
     ivec2 iCoo = ivec2(fragCoord);
-    ivec2 blocks_dim = ivec2(max(max(max(max(FLOWER_BLOCK.x,PONG_BLOCK.x),PERHI_BLOCK.x),PERLO_BLOCK.x), BASS_BLOCK.x),
+    ivec2 blocks_dim = ivec2(8,
                             FLOWER_BLOCK.y+PONG_BLOCK.y+PERHI_BLOCK.y+PERLO_BLOCK.y+DRUMS_BLOCK.y+RO_BLOCK.y+BASS_BLOCK.y);                            
     if(any(greaterThanEqual(iCoo,blocks_dim))) discard;
     //if(iCoo.y == DRUMS_BLOCK_OFFSET) fragColor = vec4(0.5);

@@ -45,7 +45,7 @@ const int PERLO_ENV_ROW = PERLO_BLOCK_OFFSET + PERLO_BLOCK.y-1;
 //DRUMS uniforms
 #define DRUMS_POINTS 7
 #define NUM_DRUMS 8
-#define DRUMS_PITCH_OFFSET 23
+#define DRUMS_PITCH_OFFSET 24
 #define DRUMS_CHAN 15
 const int DRUMS_BLOCK_OFFSET = PERLO_BLOCK.y+PERLO_BLOCK_OFFSET;
 //block dimensions: x dimension, y dimension, y dim of sub-block, y dimension offset
@@ -67,7 +67,7 @@ const ivec2 RO_COO = ivec2(0,RO_BLOCK_OFFSET);
 //Bass uniforms
 #define BASS_POINTS 7
 #define NUM_BASS 8
-#define BASS_PITCH_OFFSET 23
+#define BASS_PITCH_OFFSET 24
 #define BASS_CHAN 14 
 const int BASS_BLOCK_OFFSET = RO_BLOCK.y + RO_BLOCK_OFFSET;
 const ivec4 BASS_BLOCK = ivec4(BASS_POINTS, NUM_BASS*2+1, NUM_BASS, BASS_BLOCK_OFFSET);
@@ -596,8 +596,8 @@ float vel_note_on_drums(sampler2D midi, int channel, int pitch1, int pitch2, ino
     ivec2 p1 = ivec2(pitch1, HEIGHT_CH_BLOCK * channel );
     ivec2 p2 = ivec2(pitch2, HEIGHT_CH_BLOCK * channel );
     float vel = texelFetch(midi, p2, 0).x;
-    float secs_since_note_on  = texelFetch(midi, p1 + ivec2(0, 1), 0).x;
-    float secs_since_note_off = texelFetch(midi, p1 + ivec2(0, 2), 0).x;
+    float secs_since_note_on  = texelFetch(midi, p2 + ivec2(0, 1), 0).x;
+    float secs_since_note_off = texelFetch(midi, p2 + ivec2(0, 2), 0).x;
     float env = 0.;
     on = secs_since_note_on < secs_since_note_off || secs_since_note_off < 0.;
     return on ? vel : 0.;
@@ -711,7 +711,7 @@ vec3 getTrajectory(int id, sampler2D midi)
     return pos;
 }
 
-vec3 getTrajectoryDrumsBass(int id, int chan, sampler2D midi)
+vec3 getTrajectoryDrums(int id, int chan, sampler2D midi)
 {
     const int CC_offset = 50;
     int CC_chan  = chan;
@@ -723,6 +723,23 @@ vec3 getTrajectoryDrumsBass(int id, int chan, sampler2D midi)
     int CC_ind_vel = CC_offset + (NUM_DRUMS - id ) * 3;
     vec3 pos = vec3(getCCval(CC_ind+0, CC_chan, midi), 0.,
                     getCCval(CC_ind_vel+1, CC_chan, midi));
+    return pos;
+}
+
+vec3 getTrajectoryBass(int id, int chan, sampler2D midi)
+{
+    const int CC_offset = 50;
+    int CC_chan  = chan;
+    //xyz pos are on 3 CC for each object
+    //always on channel 15, starting from CC 50
+    int CC_ind = CC_offset + id *3;
+    //different CC ind: made a mistake in mapping velocity in synth
+    //see vel_note_on_drums for explanation
+    int CC_ind_vel = CC_offset +  id  * 3;
+    vec3 pos = vec3(getCCval(CC_ind+0, CC_chan, midi),
+                    getCCval(CC_ind+1, CC_chan, midi) ,
+                    getCCval(CC_ind+2, CC_chan, midi)
+                    );
     return pos;
 }
 
@@ -780,7 +797,7 @@ vec3 getPosPerhi(int id, vec4 data, sampler2D midi)
     float z = sect;
     //vec3 s = vec3(cos(x*TAU+sect*0.01+iTime*0.5),y, sin(x*TAU+sect*0.01+iTime*0.5));
     vec3 s = vec3(sect/3.,float(id)/8.*2.-0.5+pitch*0.5,0);
-    s = vec3(sect/3.*0.4+0.1,offs*1.3+0.08+pitch*0.2,0);
+    s = vec3(sect/3.*0.4+0.1,offs*2.8+0.08+pitch*0.1,0);
     //s.xy += vec2(0.2,0.1);
     //s *= vec3(0.05,1,1);
     //s.x += x*2.-1;
@@ -791,7 +808,7 @@ vec3 getPosDrums(int id, float env, sampler2D midi)
 {
     float drums_time_width = DRUMS_TIME_WIDTH[id];
     float sect = env > 0.1 ? (get_time_sector(iTime,drums_time_width)+1.)/(drums_time_width+1.) : 0.;
-    vec3 data = getTrajectoryDrumsBass(id,DRUMS_CHAN,midi)*1.;
+    vec3 data = getTrajectoryDrums(id,DRUMS_CHAN,midi)*1.;
    //data.x = 1.-data.x;
     data = pow(data,vec3(0.5));
     //data.y = pow(data.y,0.5);
@@ -806,14 +823,14 @@ vec3 getPosDrums(int id, float env, sampler2D midi)
 
 vec3 getPosBass(int id, float env, sampler2D midi)
 {
-    vec3 data = getTrajectoryDrumsBass(id,BASS_CHAN,midi)*1.;
+    vec3 data = getTrajectoryBass(id,BASS_CHAN,midi)*1.;
    //data.x = 1.-data.x;
     data = pow(data,vec3(0.5));
     //data.y = pow(data.y,0.5);
     env = smoothstep(0.051,0.3,env);
     float offs = float(id)/7.;
     float ang = offs*TAU+data.x*0.4+data.y;
-    float rad = BASS_TUBE_RADIUS-env*1.8;
+    float rad = BASS_TUBE_RADIUS-pow(env,0.5)*1.8;
     vec3 pos = vec3(rad*cos(ang),rad*sin(ang),-2*data.z*2.);
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
     return pos;
@@ -1005,7 +1022,7 @@ vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         int pitch1 = tex_coo.x + DRUMS_PITCH_OFFSET;
         int pitch2 = (NUM_DRUMS- tex_coo.x) + DRUMS_PITCH_OFFSET;
         int chan = DRUMS_CHAN ;
-        return getEnvelopeDrums(tex_coo, pitch1+1, pitch2, chan, 5., midi, text);
+        return getEnvelopeDrums(tex_coo, pitch1, pitch2-1, chan, 5., midi, text);
     } 
 }
 
@@ -1041,7 +1058,7 @@ vec3 animBassData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         float x = float(id)/2.*2.-1.;
         //pos = mix(pos,vec3(x,0,0),stretch_ind);
         pos *= 1.+stretch_ind*BASS_LENGTH;
-        pos.z += stretch_ind*10.;
+        pos.z += stretch_ind*1.;
         return pos;
     }
     else if(block_id == 2)
