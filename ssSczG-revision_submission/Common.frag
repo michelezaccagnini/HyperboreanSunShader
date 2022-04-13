@@ -305,7 +305,7 @@ float smin( float a, float b, float k , inout float h )
     return mix( b, a, h ) - k*h*(1.0-h);
 }
 
-vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point, inout vec3 nor)
+vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point)
 {
     float dist = 1000.;
     vec2 uv;
@@ -332,7 +332,6 @@ vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         float d = dbox3(c_point, vec3(.1, w*0.2+0.11, w*0.2+0.09));
         if(d < dist) 
         {
-            nor = norm;
             hit_point = c_point;
             uv = vec2(c_point.z*w+w*0.5,lwise.x);
         }
@@ -341,7 +340,7 @@ vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
     return vec3(dist, uv);
 }
 
-vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point, inout vec3 nor)
+vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point)
 {
     float dist = 1000.;
     vec2 uv;
@@ -368,7 +367,6 @@ vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_poi
         float d = dbox3(c_point, vec3(.1, .3*w, w));
         if(d < dist) 
         {
-            nor = norm;
             hit_point = c_point;
             uv = vec2(c_point.z*w+w*0.5,lwise.x);
         }
@@ -377,7 +375,7 @@ vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_poi
     return vec3(dist, uv);
 }
 
-vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point, inout vec3 nor)
+vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point)
 {
     float dist = 1000.;
     vec2 uv;
@@ -403,7 +401,6 @@ vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         float d = dbox3(c_point, vec3(.1, w*0.2+0.15, w+0.05));
         if(d < dist) 
         {
-            nor = norm;
             hit_point = c_point;
             uv = vec2(c_point.z*w+w*0.5,lwise.x);
         }
@@ -412,7 +409,7 @@ vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
     return vec3(dist, uv);
 }
 
-vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point, inout vec3 nor)
+vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point)
 {
     float dist = 1000.;
     vec2 uv;
@@ -440,7 +437,6 @@ vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit
         float d = dbox3(c_point, vec3(.01, .08+w*0.3, 0.1*w));
         if(d < dist) 
         {
-            nor = norm;
             hit_point = c_point;
             uv = vec2(c_point.z*0.8+0.2,lwise.x);
         }
@@ -450,7 +446,7 @@ vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit
     return vec3(dist, uv);
 }
 
-vec3 rope_flower2(vec3 p, int rope_id, sampler2D text, inout vec3 hit_point, inout vec3 nor)
+vec3 rope_flower2(vec3 p, int rope_id, sampler2D text, inout vec3 hit_point)
 {
     float dist = 1000.;
     vec2 uv;
@@ -476,7 +472,6 @@ vec3 rope_flower2(vec3 p, int rope_id, sampler2D text, inout vec3 hit_point, ino
         float d = dbox3(c_point, vec3(.01, .01, 0.01));
         if(d < dist) 
         {
-            nor = norm;
             hit_point = c_point;
             uv = vec2(c_point.z*0.1+0.1,lwise.x);
         }

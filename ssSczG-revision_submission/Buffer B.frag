@@ -45,27 +45,24 @@ HitInfo map(vec3 p)
     bool perhi_on = is_perhi_on(song_sect);
     bool drums_on = is_drums_on(song_sect);
     bool bass_on = is_bass_on(song_sect);
-    vec3 hit_point = vec3(0), norm = vec3(0);
+    vec3 hit_point = vec3(0);
     //flower
     if(flower_on)
     {
         vec3 hit_point = vec3(0),
-             hit_point2 = vec3(0),
-             norm = vec3(0), 
-             norm2 = vec3(0);
+             hit_point2 = vec3(0);
         for(int id = 0; id < 5; id++)
         {
             float env = texelFetch(BUF_A,ivec2(id,FLOWER_ENV_ROW),0).x;
             vec3 displ = flower_sect_displ(song_sect);
             vec3 sp_pos = displ;
-            vec3 rope_center = rope_flower1(p-displ,id+FLOWER_BLOCK.z  ,BUF_A,env,hit_point,norm);
-            vec3 rope_attach = rope_flower2(p-displ,id+FLOWER_BLOCK.z*3,BUF_A,hit_point2,norm2); 
+            vec3 rope_center = rope_flower1(p-displ,id+FLOWER_BLOCK.z  ,BUF_A,env,hit_point);
+            vec3 rope_attach = rope_flower2(p-displ,id+FLOWER_BLOCK.z*3,BUF_A,hit_point2); 
             //float joint = length(p-texelFetch(BUF_A,ivec2(0,id+FLOWER_BLOCK.z*3),0).xyz)-0.1;
             vec3 rop = opU(rope_center,rope_attach);
             bool is_first = rope_center.x < rope_attach.x; 
             float c_sphere = length(p-sp_pos)-0.3;
             hit_point = is_first ? hit_point : hit_point2;
-            norm = is_first ? norm : norm2 ;
             float h = 0.;
             rop.x = smin(c_sphere,rop.x,0.7,h);
             if(rop.x < res.dist)
@@ -84,12 +81,12 @@ HitInfo map(vec3 p)
     }
     if(pong_on)
     {
-        vec3 hit_point = vec3(0), norm = vec3(0);
+        vec3 hit_point = vec3(0);
         for(int id = 0; id < 8; id++)
         {
             float env = texelFetch(BUF_A,ivec2(id,PONG_ENV_ROW),0).x;
             //float sph = length(p - pos) - 0.4;
-            vec3 rop  = ropePong(p, id+PONG_BLOCK_OFFSET+PONG_BLOCK.z,BUF_A,env, hit_point, norm);
+            vec3 rop  = ropePong(p, id+PONG_BLOCK_OFFSET+PONG_BLOCK.z,BUF_A,env, hit_point);
             //rop.x = min(rop.x,sph);
             if(rop.x < res.dist)
             {
@@ -107,14 +104,14 @@ HitInfo map(vec3 p)
     if(perhi_on )
     {
         ivec2 o_sect = any(equal(ivec2(song_sect),ivec2(2,4))) ? ivec2(0 ,4) : ivec2(0,8) ; 
-        vec3 hit_point = vec3(0), norm = vec3(0);
+        vec3 hit_point = vec3(0);
         for(int id = o_sect.x; id < o_sect.y; id++)
         {
             float env = texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x;
             vec3 displ = perhi_sect_displ(song_sect);
             vec3 sp_pos = displ ;
             float center_sph = length(p-sp_pos) -0.7;
-            vec3 rop  = ropePerhi(p-displ, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A, env, hit_point, norm);
+            vec3 rop  = ropePerhi(p-displ, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A, env, hit_point);
             //rop.x = min(rop.x,sph); 
             float h = 0.;
             rop.x = smin(rop.x,center_sph,0.6,h);
@@ -135,12 +132,12 @@ HitInfo map(vec3 p)
     }
     if(drums_on)
     {
-        vec3 hit_point = vec3(0), norm = vec3(0);
+        vec3 hit_point = vec3(0);
         int block = DRUMS_BLOCK_OFFSET+DRUMS_BLOCK.z;
         for(int id = 0; id < 8; id++)
         {
             float env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
-            vec3 rop  = ropeDrums(p, id+block,BUF_A, env, hit_point, norm);
+            vec3 rop  = ropeDrums(p, id+block,BUF_A, env, hit_point);
             
             //rop.x = min(rop.x,sph);
             if(rop.x < res.dist)
@@ -160,12 +157,12 @@ HitInfo map(vec3 p)
     }
     if(bass_on)
     {
-        vec3 hit_point = vec3(0), norm = vec3(0);
+        vec3 hit_point = vec3(0);
         for(int id = 0; id < 8; id++)
         {
             float env = texelFetch(BUF_A,ivec2(id,BASS_ENV_ROW),0).x;
             vec3 displ = song_sect > 5 ?vec3(0,0, LAST_SECT_DISPLACE) : vec3(0);
-            vec3 rop  = ropeDrums(p-displ, id+BASS_BLOCK_OFFSET+BASS_BLOCK.z,BUF_A, env, hit_point, norm);
+            vec3 rop  = ropeDrums(p-displ, id+BASS_BLOCK_OFFSET+BASS_BLOCK.z,BUF_A, env, hit_point);
             //rop.x = min(rop.x,sph);
             if(rop.x < res.dist)
             {
@@ -193,6 +190,7 @@ HitInfo intersect(vec3 ro, vec3 rd)
         if(d > max_dist || abs(res.dist) < min_dist) break;
         d += res.dist;
     }
+    res.dist = d;
     return res;
 }
 
@@ -216,7 +214,7 @@ vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
     float light_distance = smoothstep(.1,1.01, length(lig_pos- hit.pos)*.1)*1.2;
     float falloff = .15;
     vec3 ha = hash31(float(hit.id.x)+float(hit.id.y));
-    hit.col  = ha*0.2+vec3(1.0, .4, 0.)*1.;
+    hit.col  = ha*1.2+vec3(1.0, .4, 0.)*1.;
     float light_intensity = clamp(falloff/pow(light_distance,0.42),0,1);
     //light_intensity =pow(light_intensity,.4545);
     float fres = clamp(1. - dot(hit.nor, -rd),0.,1.);
@@ -228,7 +226,7 @@ vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
     vec3 txt = texture(TEXTURE,hit.uv_transorm).xyz;
     float bump = clamp(dot(txt,txt),0.,1.);
     //col = mix(col,txt,0.4);
-    col *= bump*4.;
+    col *= bump*2.;
     // color center spheres for FLOWER and PERHI
     if(any(equal(ivec2(hit.id.x),ivec2(1,3))))
         col = hit.id.x == 1 ? mix(col,FLOWER_COL_CENTER,hit.smin) : mix(col,PERHI_COL_CENTER,hit.smin);
@@ -249,14 +247,16 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     if(hit.dist < 10.)
     {
         //hit.nor = normal(ro + rd*hit.dist);
-        vec3 norm = normal(ro+rd*hit.dist);
+        vec3 norm = normal(ro+rd*hit.dist*3.1);
         vec3 lig_pos = vec3(1,10,0);
         col = calcLight(hit,rd,lig_pos);
         //col *= texelFetch(BUF_A,ivec2(hit.id,1),0).xxx*2.+0.1; 
         col = max(col,vec3(0));
-        vec3 feed = texture(FEEDBACK,fragCoord/iResolution.xy).xyz;
-        col += max(feed * 0.13, vec3(0));
+        col = norm;
+        
     }
+    vec3 feed = max(pow(texture(FEEDBACK,fragCoord/iResolution.xy).xyz,vec3(2.)),vec3(0));
+    col = mix(col, feed, 0.1)*0.5+col*0.8;
     int song_sect = getSongSection(MIDI);
     vec3 sun1_pos = perhi_sect_displ(song_sect);
     vec3 sun1 = is_perhi_on(song_sect) ? integrateLightFullView(ro-sun1_pos,rd,0.051,1.)*PERHI_COL_CENTER : vec3(0);
