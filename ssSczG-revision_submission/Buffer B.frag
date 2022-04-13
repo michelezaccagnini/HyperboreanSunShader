@@ -54,15 +54,13 @@ HitInfo map(vec3 p)
              norm2 = vec3(0);
         for(int id = 0; id < 5; id++)
         {
-            vec3 displ = song_sect < 5? vec3(0) : vec3(0,0,-LAST_SECT_DISPLACE);
+            vec3 displ = flower_sect_displ(song_sect);
             vec3 sp_pos = displ;
             vec3 rope_center = rope_flower1(p-displ,id+FLOWER_BLOCK.z  ,BUF_A,0.01,hit_point,norm);
             vec3 rope_attach = rope_flower2(p-displ,id+FLOWER_BLOCK.z*3,BUF_A,0.01,hit_point2,norm2); 
             //float joint = length(p-texelFetch(BUF_A,ivec2(0,id+FLOWER_BLOCK.z*3),0).xyz)-0.1;
             vec3 rop = opU(rope_center,rope_attach);
             bool is_first = rope_center.x < rope_attach.x; 
-            
-
             float c_sphere = length(p-sp_pos)-0.3;
             hit_point = is_first ? hit_point : hit_point2;
             norm = is_first ? norm : norm2 ;
@@ -102,10 +100,7 @@ HitInfo map(vec3 p)
         for(int id = o_sect.x; id < o_sect.y; id++)
         {
             float env = texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x;
-            int sect_check = song_sect < 4 ? 0 : song_sect > 6 ? 2 : 1; 
-            vec3 displ = sect_check == 0 ? vec3(0,4,0) : 
-                         sect_check == 1 ? vec3(0) : 
-                         vec3(0,0,LAST_SECT_DISPLACE) ;
+            vec3 displ = perhi_sect_displ(song_sect);
             vec3 sp_pos = displ ;
             float center_sph = length(p-sp_pos) -0.7;
             vec3 rop  = ropePerhi(p-displ, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A,0.01, env, hit_point, norm);
@@ -238,9 +233,12 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         vec3 feed = texture(FEEDBACK,fragCoord/iResolution.xy).xyz;
         col += max(feed * 0.13, vec3(0));
     }
-    vec3 sun = integrateLightFullView(ro,rd,0.051,1.)*vec3(0.9451, 0.8549, 0.0392);
-    fragColor.xyz = pow(col+sun, vec3(.4545));
-    // fragColor = texelFetch(iChannel2, ivec2(fragCoord.xy/iResolution.xy*vec2(128.,16.*5.)), 0);
+    int song_sect = getSongSection(MIDI);
+    vec3 sun1_pos = perhi_sect_displ(song_sect);
+    vec3 sun1 = is_perhi_on(song_sect) ? integrateLightFullView(ro-sun1_pos,rd,0.051,1.)*vec3(0.9451, 0.8549, 0.0392) : vec3(0);
+    vec3 sun2_pos = flower_sect_displ(song_sect);
+    vec3 sun2 = is_flower_on(song_sect) ?  integrateLightFullView(ro-sun2_pos,rd,0.21,0.5)*vec3(0.9529, 0.5294, 0.0745) :  vec3(0);
+    fragColor.xyz = pow(col+sun1+sun2, vec3(.4545));
 }
 
 
