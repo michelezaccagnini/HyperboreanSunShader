@@ -85,8 +85,6 @@ const int BASS_ENV_ROW = BASS_BLOCK_OFFSET + BASS_BLOCK.y - 1;
 #define PI 3.14159265359
 #define RHO 1.570796326795
 
-
-
 mat3 camera( in vec3 ro, in vec3 ta, float cr )
 {
 	vec3 cw = normalize(ta-ro);
@@ -1044,3 +1042,188 @@ vec3 animBassData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
     } 
 }
 
+
+/*
+musical data explanation:
+objects move back and forth (bouncing motion) on 3 dimensions
+each one-dimensional bouncing motion can have a different period
+at a given moment their position is "measured" (snapshot of their positions) 
+and their parameters are returned determining the position in time, 
+velocity and pitch: while their movement is continuous, 
+their sound parameters are output only at certain points in time (not randomly)
+
+each dimension is mapped to a parameter: 
+1. rhythmic position (where in bar)
+2. velocity
+3. pitch
+*/
+#define MAX_DIST 100.
+struct HitInfo
+{
+    float dist;
+    //id is element id  and sub element id (e.g. rope id)
+    ivec2 id;
+    //returns rope/sphere connection interpolation index
+    float smin;
+    vec3 pos;
+    vec3 surf;
+    vec3 nor;
+    vec2 uv;
+    vec2 uv_transorm;
+    vec3 col;
+    float env;
+};
+
+HitInfo map(vec3 p, sampler2D BUF_A, sampler2D MIDI, sampler2D TEXTURE)
+{
+    HitInfo res;
+    res.dist = MAX_DIST;
+    int song_sect = getSongSection(MIDI);
+    bool flower_on = is_flower_on(song_sect);
+    bool pong_on = is_pong_on(song_sect);
+    bool perhi_on = is_perhi_on(song_sect);
+    bool drums_on = is_drums_on(song_sect);
+    bool bass_on = is_bass_on(song_sect);
+    vec3 hit_point = vec3(0);
+    //flower
+    if(flower_on)
+    {
+        vec3 hit_point = vec3(0),
+             hit_point2 = vec3(0);
+        for(int id = 0; id < 5; id++)
+        {
+            float env = texelFetch(BUF_A,ivec2(id,FLOWER_ENV_ROW),0).x;
+            vec3 displ = flower_sect_displ(song_sect);
+            vec3 sp_pos = displ;
+            vec3 rope_center = rope_flower1(p-displ,id+FLOWER_BLOCK.z  ,BUF_A,env,hit_point);
+            vec3 rope_attach = rope_flower2(p-displ,id+FLOWER_BLOCK.z*3,BUF_A,hit_point2); 
+            //float joint = length(p-texelFetch(BUF_A,ivec2(0,id+FLOWER_BLOCK.z*3),0).xyz)-0.1;
+            vec3 rop = opU(rope_center,rope_attach);
+            bool is_first = rope_center.x < rope_attach.x; 
+            float c_sphere = length(p-sp_pos)-0.3;
+            hit_point = is_first ? hit_point : hit_point2;
+            float h = 0.;
+            rop.x = smin(c_sphere,rop.x,0.7,h);
+            if(rop.x < res.dist)
+            {
+                id += is_first ? 0 : 5;
+                vec2 tuv = rop.yz*0.1;
+                tuv.y += env;
+                vec3 txt = texture(TEXTURE,tuv).xyz;
+                float bump = clamp(dot(txt,txt),0.,1.)*0.051;
+                res.dist = rop.x-bump, res.id = ivec2(1,id), res.uv = rop.yz,
+                res.uv_transorm = tuv, 
+                res.pos = p, res.surf = hit_point,
+                res.env = env, 
+                res.smin = h;           
+            }
+        }
+    }
+    if(pong_on)
+    {
+        vec3 hit_point = vec3(0);
+        for(int id = 0; id < 8; id++)
+        {
+            float env = texelFetch(BUF_A,ivec2(id,PONG_ENV_ROW),0).x;
+            //float sph = length(p - pos) - 0.4;
+            vec3 rop  = ropePong(p, id+PONG_BLOCK_OFFSET+PONG_BLOCK.z,BUF_A,env, hit_point);
+            //rop.x = min(rop.x,sph);
+            if(rop.x < res.dist)
+            {
+                vec2 tuv = rop.yz*0.1;
+                tuv.y += env;
+                vec3 txt = texture(TEXTURE,tuv).xyz;
+                float bump = clamp(dot(txt,txt),0.,1.)*0.01;
+                res.dist = rop.x-bump, res.id = ivec2(2,id), 
+                res.uv_transorm = tuv, res.uv = rop.yz, res.pos = p, res.surf = hit_point, 
+                res.env = texelFetch(BUF_A,ivec2(id,PONG_ENV_ROW),0).x,
+                res.surf = hit_point, res.smin = 0.;
+            }
+        }
+    }
+    if(perhi_on )
+    {
+        ivec2 o_sect = any(equal(ivec2(song_sect),ivec2(2,4))) ? ivec2(0 ,4) : ivec2(0,8) ; 
+        vec3 hit_point = vec3(0);
+        for(int id = o_sect.x; id < o_sect.y; id++)
+        {
+            float env = texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x;
+            vec3 displ = perhi_sect_displ(song_sect);
+            vec3 sp_pos = displ ;
+            float center_sph = length(p-sp_pos) -0.7;
+            vec3 rop  = ropePerhi(p-displ, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A, env, hit_point);
+            //rop.x = min(rop.x,sph); 
+            float h = 0.;
+            rop.x = smin(rop.x,center_sph,0.6,h);
+            if(rop.x < res.dist)
+            {
+                vec2 tuv = rop.yz*0.1;
+                tuv.y += env;
+                vec3 txt = texture(TEXTURE,tuv).xyz;
+                float bump = clamp(dot(txt,txt),0.,1.)*0.1;
+                res.dist = rop.x-bump, res.id = ivec2(3,id), res.uv_transorm = tuv, 
+                res.uv = rop.yz, res.pos = p, 
+                res.surf = hit_point, 
+                res.env = texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x,
+                res.surf = hit_point,
+                res.smin = 1.-h;
+            }
+        }
+    }
+    if(drums_on)
+    {
+        vec3 hit_point = vec3(0);
+        int block = DRUMS_BLOCK_OFFSET+DRUMS_BLOCK.z;
+        for(int id = 0; id < 8; id++)
+        {
+            float env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
+            vec3 rop  = ropeDrums(p, id+block,BUF_A, env, hit_point);
+            
+            //rop.x = min(rop.x,sph);
+            if(rop.x < res.dist)
+            {
+                vec2 tuv = rop.yz*0.1;
+                tuv.y += env;
+                vec3 txt = texture(TEXTURE,tuv).xyz;
+                float bump = clamp(dot(txt,txt),0.,1.)*0.1;
+                res.dist = rop.x, res.id = ivec2(4,id), res.uv_transorm = tuv,
+                res.uv = rop.yz, 
+                res.pos = p, res.surf = hit_point, 
+                res.env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
+                res.surf = hit_point, 
+                res.smin = 0.;
+            }
+        }
+    }
+    if(bass_on)
+    {
+        vec3 hit_point = vec3(0);
+        for(int id = 0; id < 8; id++)
+        {
+            float env = texelFetch(BUF_A,ivec2(id,BASS_ENV_ROW),0).x;
+            vec3 displ = song_sect > 5 ?vec3(0,0, LAST_SECT_DISPLACE) : vec3(0);
+            vec3 rop  = ropeDrums(p-displ, id+BASS_BLOCK_OFFSET+BASS_BLOCK.z,BUF_A, env, hit_point);
+            //rop.x = min(rop.x,sph);
+            if(rop.x < res.dist)
+            {
+                res.dist = rop.x, res.id = ivec2(4,id), res.uv = rop.yz, 
+                res.pos = p, res.surf = hit_point, 
+                res.env = texelFetch(BUF_A,ivec2(id,BASS_ENV_ROW),0).x;
+                res.surf = hit_point, res.smin = 0.;
+            }
+        }
+    }
+    return res;
+}
+
+
+// http://iquilezles.org/www/articles/normalsSDF/normalsSDF.htm
+vec3 normal( in vec3 pos, sampler2D buffer_a, sampler2D midi, sampler2D another_texture)
+{
+    const float ep = 0.01;
+    vec2 e = vec2(1.0,-1.0)*0.05773;
+    return normalize( e.xyy*map( pos + e.xyy*ep, buffer_a, midi, another_texture).dist + 
+					  e.yyx*map( pos + e.yyx*ep, buffer_a, midi, another_texture).dist + 
+					  e.yxy*map( pos + e.yxy*ep, buffer_a, midi, another_texture).dist + 
+					  e.xxx*map( pos + e.xxx*ep, buffer_a, midi, another_texture).dist );
+}
