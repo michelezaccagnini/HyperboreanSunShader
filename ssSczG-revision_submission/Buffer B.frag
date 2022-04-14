@@ -174,6 +174,7 @@ HitInfo map(vec3 p)
             }
         }
     }
+
     return res;
 }
 
@@ -233,12 +234,12 @@ vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
     vec3 col = fres*0.2*diff*hit.col*light_intensity;
     float stripe = 0.;
     if(hit.id.x == 3) hit.env = 1.- hit.env;
-    stripe = pow(smoothstep(0.1,0.0,abs(pow(hit.env,0.5)-(1.-hit.uv.y))),2.);
-    col *=vec3(stripe *3.+10.8);//diff*pow(hit.env,1.5)*1.+0.1;//max(col, vec3(0));
+    stripe = pow(smoothstep(0.1,0.0,abs(pow(hit.env,0.5)-(1.-hit.uv.y))),0.5);
+    col *=vec3(stripe *3.+0.8);//diff*pow(hit.env,1.5)*1.+0.1;//max(col, vec3(0));
     vec3 txt = texture(TEXTURE,hit.uv_transorm).xyz;
     float bump = clamp(dot(txt,txt),0.,1.);
-    //col += txt*light_intensity;
-    col += bump*PERHI_COL_CENTER;
+    col += txt*light_intensity*0.5;
+    col += bump*PERHI_COL_CENTER*0.2;
     // color center spheres for FLOWER and PERHI
     col =  mix(col,sun_col,hit.smin);
     if(hit.id.x == 1 && hit.id.y > 4) col *= 0.2;

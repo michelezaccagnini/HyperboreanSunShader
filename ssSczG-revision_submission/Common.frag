@@ -1,5 +1,7 @@
 
 #define TIME_UNIT 0.12 // 120 ms = 125 bpm
+#define FPS 60
+const float STREAM_SLIDE = FPS == 60 ? 0.5 : 1.;  
 
 //Flower uniforms
 #define ROPE_POINTS 7
@@ -11,7 +13,7 @@ const ivec4 FLOWER_BLOCK = ivec4(ROPE_POINTS,
                                 NUM_FLOWER_PETALS, //5
                                 FLOWER_BLOCK_OFFSET);
 const int FLOWER_ENV_ROW = FLOWER_BLOCK.y-1;
-#define FLOWER_COL_CENTER vec3(0.0706, 0.9569, 0.9569)
+#define FLOWER_COL_CENTER vec3(0.3059, 0.4039, 0.8941)
 
 //Pong uniforms
 #define PONG_POINTS 7
@@ -746,7 +748,7 @@ vec3 getPosPong(int id, float env, sampler2D midi)
     float lati =  data.y*TAU*0.8;
     float offs = float(id-8);
     pos = vec3(offs*20.+data.x*0.3,0,offs*1.+data.y*0.3);
-    pos.xz *= 0.3;
+    pos.xz *= 0.2;
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
     vec3 spherical_pos = to_cartesian(pos.xz)*PERHI_SPHERE_RADIUS+data.z*2.; 
     spherical_pos.y -= env*1.;
@@ -826,7 +828,7 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             float env = texelFetch(text, ivec2(id, FLOWER_ENV_ROW),0).x;
             return getPosFlower(id,env, midi);
         } 
-        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.6);
+        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.6*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
@@ -884,9 +886,11 @@ vec3 animPongData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         {
             int id = tex_coo.y - block_offset ;
             float env = texelFetch(text, ivec2(id, PONG_ENV_ROW),0).x;
-            return getPosPong(id+chan_offset,env, midi);
+            vec3 tar = getPosPong(id+chan_offset,env, midi);
+            vec3 cur = texelFetch(text,tex_coo,0).xyz;
+            return slide(tar, cur, 0.5*STREAM_SLIDE);
         } 
-        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.5);
+        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.5*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
@@ -931,7 +935,7 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             tar.xz += tar.xz*rotate(iTime*2.083)*0.3;
             return vec4(slide(tar, cur, 0.5),0);
         } 
-        else  return iFrame < 10 ? vec4(1) :  pix_stream4(tex_coo,text,0.8);
+        else  return iFrame < 10 ? vec4(1) :  pix_stream4(tex_coo,text,0.8*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
@@ -971,9 +975,9 @@ vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             float env = texelFetch(text, ivec2(id, DRUMS_ENV_ROW),0).x;
             vec3 cur = texelFetch(text,tex_coo,0).xyz;
             vec3 tar = getPosDrums(id,env, midi);
-            return slide(tar, cur, 0.5);
+            return slide(tar, cur, 0.5*STREAM_SLIDE);
         } 
-        else  return iFrame < 10 ? vec3(1) :  pix_stream(tex_coo,text,0.5);
+        else  return iFrame < 10 ? vec3(1) :  pix_stream(tex_coo,text,0.5*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
@@ -1018,9 +1022,9 @@ vec3 animBassData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             float env = texelFetch(text, ivec2(id, BASS_ENV_ROW),0).x;
             vec3 cur = texelFetch(text,tex_coo,0).xyz;
             vec3 tar = getPosBass(id,env, midi);
-            return slide(tar, cur, 0.5);
+            return slide(tar, cur, 0.5*STREAM_SLIDE);
         } 
-        else  return iFrame < 10 ? vec3(1) :  pix_stream(tex_coo,text,0.5);
+        else  return iFrame < 10 ? vec3(1) :  pix_stream(tex_coo,text,0.5*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
