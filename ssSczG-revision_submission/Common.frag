@@ -11,7 +11,7 @@ const ivec4 FLOWER_BLOCK = ivec4(ROPE_POINTS,
                                 NUM_FLOWER_PETALS, //5
                                 FLOWER_BLOCK_OFFSET);
 const int FLOWER_ENV_ROW = FLOWER_BLOCK.y-1;
-#define FLOWER_COL_CENTER vec3(0.9529, 0.5294, 0.0745)
+#define FLOWER_COL_CENTER vec3(0.0706, 0.9569, 0.9569)
 
 //Pong uniforms
 #define PONG_POINTS 7
@@ -326,10 +326,10 @@ vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         const float span = 1./4.;
         float bez_ind = floor(float(i)/2.);
         vec2 lwise =vec2(t*span+bez_ind*span,t);
-        float l = clamp(pow(lwise.x,0.5),0.,1.);
-        float w =smoothstep(0.4,0.,abs(l-pow(env,0.5)))*smoothstep(0.2,0.4,l);
+        float l = clamp(pow(lwise.x,0.8),0.,1.);
+        float w =smoothstep(0.4,0.,abs(l-pow(env,0.5)))*smoothstep(0.2,0.6,l);
         
-        float d = dbox3(c_point, vec3(.1, w*0.2+0.11, w*0.2+0.09));
+        float d = dbox3(c_point, vec3(.1, w*0.4+0.11, w*0.4+0.09));
         if(d < dist) 
         {
             hit_point = c_point;
@@ -349,7 +349,7 @@ vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_poi
         vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
         vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
         vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
-        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
+        //if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
         vec2 b = dtspline3(p,pp1,pp2,pp3);
         float t = b.y;
         vec3 norm  = nspline3(p,t,pp1,pp2,pp3);

@@ -67,6 +67,7 @@ HitInfo map(vec3 p)
             rop.x = smin(c_sphere,rop.x,0.7,h);
             if(rop.x < res.dist)
             {
+                id += is_first ? 0 : 5;
                 vec2 tuv = rop.yz*0.1;
                 tuv.y += env;
                 vec3 txt = texture(TEXTURE,tuv).xyz;
@@ -207,29 +208,40 @@ vec3 normal( in vec3 pos)
 
 vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
 { 
-    vec3 diff = max(0.,dot(hit.surf, lig_pos)*0.5+0.5)*vec3(0.2,1.12,1.26);
+    vec3 diff = max(0.,dot(hit.nor, lig_pos)*0.5+0.5)*vec3(0.2,1.12,1.26);
     //reflect
     vec3 refl = reflect(lig_pos,hit.pos);
     vec3 spec_lig = vec3(clamp(dot(rd, refl),0.,1.));
-    float light_distance = smoothstep(.1,1.01, length(lig_pos- hit.pos)*.1)*1.2;
-    float falloff = .15;
+    int song_sect =getSongSection(MIDI);
+    vec3 sun_pos = vec3(0), sun_col = vec3(0);
+    if(any(equal(ivec3(hit.id.x),ivec3(1,2,4))))
+    {
+        sun_pos = flower_sect_displ(song_sect);
+        sun_col = FLOWER_COL_CENTER;
+    }
+    else
+    {
+        sun_pos = perhi_sect_displ(song_sect);
+        sun_col = PERHI_COL_CENTER;
+    }
+    float light_distance = smoothstep(.1,2., length(sun_pos- hit.pos)*0.2);
+    float falloff = .05;
     vec3 ha = hash31(float(hit.id.x)+float(hit.id.y));
-    hit.col  = ha*1.2+vec3(1.0, .4, 0.)*1.;
-    float light_intensity = clamp(falloff/pow(light_distance,0.42),0,1);
-    //light_intensity =pow(light_intensity,.4545);
+    hit.col  = max(ha*1.2+sun_col,vec3(1));
+    float light_intensity = clamp(falloff/pow(light_distance,1.8),0,1);
     float fres = clamp(1. - dot(hit.nor, -rd),0.,1.);
-    vec3 col = fres*0.2*diff*vec3(pow(hit.env,.5)*5.)*hit.col*1.;
+    vec3 col = fres*0.2*diff*hit.col*light_intensity;
     float stripe = 0.;
     if(hit.id.x == 3) hit.env = 1.- hit.env;
     stripe = pow(smoothstep(0.1,0.0,abs(pow(hit.env,0.5)-(1.-hit.uv.y))),2.);
-    col *=vec3(stripe *3.+0.1);//diff*pow(hit.env,1.5)*1.+0.1;//max(col, vec3(0));
+    col *=vec3(stripe *3.+10.8);//diff*pow(hit.env,1.5)*1.+0.1;//max(col, vec3(0));
     vec3 txt = texture(TEXTURE,hit.uv_transorm).xyz;
     float bump = clamp(dot(txt,txt),0.,1.);
-    //col = mix(col,txt,0.4);
-    col *= bump*2.;
+    //col += txt*light_intensity;
+    col += bump*PERHI_COL_CENTER;
     // color center spheres for FLOWER and PERHI
-    if(any(equal(ivec2(hit.id.x),ivec2(1,3))))
-        col = hit.id.x == 1 ? mix(col,FLOWER_COL_CENTER,hit.smin) : mix(col,PERHI_COL_CENTER,hit.smin);
+    col =  mix(col,sun_col,hit.smin);
+    if(hit.id.x == 1 && hit.id.y > 4) col *= 0.2;
     return col;
 }
 
@@ -244,19 +256,17 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 rd = cam * normalize(vec3(uv,1));
     HitInfo hit = intersect(ro,rd);
     vec3 col = vec3(0);
-    if(hit.dist < 10.)
+    if(hit.dist < 40.)
     {
         //hit.nor = normal(ro + rd*hit.dist);
-        vec3 norm = normal(ro+rd*hit.dist*3.1);
+        hit.nor = normal(ro+rd*hit.dist);
         vec3 lig_pos = vec3(1,10,0);
         col = calcLight(hit,rd,lig_pos);
         //col *= texelFetch(BUF_A,ivec2(hit.id,1),0).xxx*2.+0.1; 
-        col = max(col,vec3(0));
-        col = norm;
-        
+        col = max(col,vec3(0));        
     }
     vec3 feed = max(pow(texture(FEEDBACK,fragCoord/iResolution.xy).xyz,vec3(2.)),vec3(0));
-    col = mix(col, feed, 0.1)*0.5+col*0.8;
+    col = mix(col, feed, 0.2)*0.5+col*0.8;
     int song_sect = getSongSection(MIDI);
     vec3 sun1_pos = perhi_sect_displ(song_sect);
     vec3 sun1 = is_perhi_on(song_sect) ? integrateLightFullView(ro-sun1_pos,rd,0.051,1.)*PERHI_COL_CENTER : vec3(0);
