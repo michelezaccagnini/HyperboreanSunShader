@@ -316,7 +316,7 @@ vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
         vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
         vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
-        //if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
+        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
         vec2 b = dtspline3(p,pp1,pp2,pp3);
         float t = b.y;
         vec3 norm  = nspline3(p,t,pp1,pp2,pp3);
@@ -351,7 +351,7 @@ vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_poi
         vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
         vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
         vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
-        //if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
+        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
         vec2 b = dtspline3(p,pp1,pp2,pp3);
         float t = b.y;
         vec3 norm  = nspline3(p,t,pp1,pp2,pp3);
@@ -386,7 +386,7 @@ vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
         vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
         vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
-        //if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
+        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
         vec2 b = dtspline3(p,pp1,pp2,pp3);
         float t = b.y;
         vec3 norm  = nspline3(p,t,pp1,pp2,pp3);
@@ -420,7 +420,7 @@ vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit
         vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
         vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
         vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
-        //if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
+        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
         vec2 b = dtspline3(p,pp1,pp2,pp3);
         float t = b.y;
         vec3 norm  = nspline3(p,t,pp1,pp2,pp3);
