@@ -500,35 +500,35 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
     {
         float revolutions = 4.;
         float ang = y * TAU * revolutions;
-        sli = 0.1;
+        sli = 0.1*STREAM_SLIDE;
         tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
     }
     else if( song_sect == 1 || song_sect == 2)
     {
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
-        sli = 0.1;
+        sli = 0.1*STREAM_SLIDE;
         tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
     }
     else if(song_sect == 3)
     {
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
-        sli = 0.05;
+        sli = 0.05*STREAM_SLIDE;
         tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
     }
     else if(song_sect == 4)
     {
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
-        sli = 0.05;
+        sli = 0.05*STREAM_SLIDE;
         tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
     }
     else if(song_sect > 4 )
     {
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
-        sli = 0.05;
+        sli = 0.05*STREAM_SLIDE;
         tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
     }
     return slide(cur,tar, sli);
@@ -731,7 +731,7 @@ vec3 getPosFlower(int id, float env, sampler2D midi)
 
 vec3 flower_sect_displ(int song_sect)
 {
-    return song_sect < 5? vec3(0) : vec3(0,0,-LAST_SECT_DISPLACE);
+    return song_sect < 5 || song_sect > 10? vec3(0) : vec3(0,0,-LAST_SECT_DISPLACE);
 }
 
 vec3 getPosPong(int id, float env, sampler2D midi)
@@ -991,7 +991,7 @@ vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         pos *= 1.+stretch_ind*DRUMS_LENGTH;
         pos.z += stretch_ind*1.2;
         int song_sect  = getSongSection(midi);
-        if(song_sect > 5) pos.z -= LAST_SECT_DISPLACE;
+        pos.z +=  song_sect > 5 ? flower_sect_displ(song_sect).z : 0.;        
         return pos;
     }
     else if(block_id == 2)

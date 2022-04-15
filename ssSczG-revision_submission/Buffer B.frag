@@ -257,7 +257,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 rd = cam * normalize(vec3(uv,1));
     HitInfo hit = intersect(ro,rd);
     vec3 col = vec3(0);
-    if(hit.dist < 40.)
+    if(hit.dist < 80.)
     {
         //hit.nor = normal(ro + rd*hit.dist);
         hit.nor = normal(ro+rd*hit.dist);
