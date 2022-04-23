@@ -1,6 +1,6 @@
 
 #define TIME_UNIT 0.12 // 120 ms = 125 bpm
-#define FPS 60
+#define FPS 30
 const float STREAM_SLIDE = FPS == 60 ? 0.5 : 1.;  
 
 //Flower uniforms
@@ -58,7 +58,7 @@ const ivec4 DRUMS_BLOCK = ivec4(DRUMS_POINTS, NUM_DRUMS*2+1, NUM_DRUMS,DRUMS_BLO
 const int DRUMS_ENV_ROW = DRUMS_BLOCK_OFFSET + DRUMS_BLOCK.y-1;
 const int[NUM_DRUMS] DRUMS_TIME_WIDTH = int[NUM_DRUMS](3,4,3,3,4,3,3,3);
 #define DRUM_TUBE_RADIUS 6.
-#define DRUMS_LENGTH 1.2
+#define DRUMS_LENGTH 0.52
 
 
 //Camera uniforms
@@ -78,10 +78,11 @@ const int BASS_BLOCK_OFFSET = RO_BLOCK.y + RO_BLOCK_OFFSET;
 const ivec4 BASS_BLOCK = ivec4(BASS_POINTS, NUM_BASS*2+1, NUM_BASS, BASS_BLOCK_OFFSET);
 const int BASS_ENV_ROW = BASS_BLOCK_OFFSET + BASS_BLOCK.y - 1;
 #define BASS_TUBE_RADIUS 8.
-#define BASS_LENGTH 0.8
+#define BASS_LENGTH 0.5
 
 
-//inner sphere
+//outer sphere
+#define STAR_RAD 6.
 
 #define TAU 6.28318530718
 #define PI 3.14159265359
@@ -165,6 +166,14 @@ float sdCapsule( vec3 p, vec3 a, vec3 b, float r)
   float h = clamp( dot(pa,ba)/dot(ba,ba), 0.0, 1.0 );
   return length( pa - ba*h ) - r;
 }
+
+vec2 polar(vec3 U)
+{
+   return fract(vec2(
+        atan(U.z, U.x) / 2.,
+        atan(U.y, length(U.xz))
+    ) / PI + .5);
+}
 //==========================================================================================
 //MIDI
 //==========================================================================================
@@ -180,6 +189,22 @@ float getCCval (int CC, int channel,sampler2D midi_data)
     return ccv;
 }
 
+//Lighting Utils
+float fresnel(float bias, float scale, float power, vec3 I, vec3 N)
+{
+    return bias + scale * pow(1.0 + dot(I, N), power);
+}
+
+//https://www.shadertoy.com/view/7lsBR8
+// Very lame sky with sun-like object. Basically, this was a quick hack to emulate
+// the "Forest Blurred" cube map... It needs work. :)
+vec3 getSky(vec3 rd, vec3 ld){
+
+    float lgt = max(dot(rd, ld), 0.);
+    vec3 sky = mix(vec3(.1, .05, .04), vec3(.95, .97, 1)*3., clamp((rd.y + .5),0., 1.))/1.5;
+    sky = mix(sky, vec3(8), pow(lgt, 8.));
+    return min(sky*vec3(1, 1.1, 1.3), 1.);
+}
 //==========================================================================================
 //ONESHADE code
 //==========================================================================================
@@ -198,6 +223,7 @@ float integrateLightFullView(in vec3 ro, in vec3 rd, in float k, in float d)
 //==========================================================================================
 //NR4 code
 //==========================================================================================
+
 const vec3 c = vec3(1.,0.,-1.);
 const float pi = acos(-1.);
 // Determine zeros of k.x*x^2+k.y*x+k.z
@@ -722,7 +748,7 @@ vec3 getPosFlower(int id, float env, sampler2D midi)
     //pitch position : latitude
     float longi = data.x*TAU*0.8;
     float lati =  data.y*TAU*0.8;
-    pos = vec3(cos(longi),data.y*2.-1.+pow(env,1.5)*0.4-0.2,sin(longi))*4.;//*vec3(data.x,1,data.x)*4.+FULCRUM1;
+    pos = vec3(cos(longi),cos(float(id))+data.y*2.-1.+pow(env,0.5)*1.4-0.2,sin(longi))*4.;//*vec3(data.x,1,data.x)*4.+FULCRUM1;
     //pos = vec3(cos(data.z*TAU),float(id)/4.*2.-1.,sin(data.z*TAU))*3.;
     //pos = vec3( float(id),data.y*3.,0);
 

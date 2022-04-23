@@ -2,6 +2,8 @@
 #define BUF_A iChannel1
 #define MIDI iChannel2
 #define TEXTURE iChannel3
+#define ZERO (min(iFrame,0))
+#define AA 1
 
 
 /*
@@ -35,6 +37,8 @@ struct HitInfo
     float env;
 };
 
+vec3 glow;
+
 HitInfo map(vec3 p)
 {
     HitInfo res;
@@ -56,18 +60,20 @@ HitInfo map(vec3 p)
             float env = texelFetch(BUF_A,ivec2(id,FLOWER_ENV_ROW),0).x;
             vec3 displ = flower_sect_displ(song_sect);
             vec3 sp_pos = displ;
-            vec3 rope_center = rope_flower1(p-displ,id+FLOWER_BLOCK.z  ,BUF_A,env,hit_point);
-            vec3 rope_attach = rope_flower2(p-displ,id+FLOWER_BLOCK.z*3,BUF_A,hit_point2); 
+            vec3 rop = rope_flower1(p-displ,id+FLOWER_BLOCK.z  ,BUF_A,env,hit_point);
+            //vec3 rope_attach = rope_flower2(p-displ,id+FLOWER_BLOCK.z*3,BUF_A,hit_point2); 
             //float joint = length(p-texelFetch(BUF_A,ivec2(0,id+FLOWER_BLOCK.z*3),0).xyz)-0.1;
-            vec3 rop = opU(rope_center,rope_attach);
-            bool is_first = rope_center.x < rope_attach.x; 
+            //vec3 rop = opU(rope_center,rope_attach);
+            //bool is_first = rope_center.x < rope_attach.x; 
             float c_sphere = length(p-sp_pos)-0.3;
-            hit_point = is_first ? hit_point : hit_point2;
+            hit_point = hit_point;//is_first ? hit_point : hit_point2;
             float h = 0.;
             rop.x = smin(c_sphere,rop.x,0.7,h);
+            float glow_int = smoothstep(0.051,0.,abs(rop.z*0.5-(1.-pow(env,0.5))))*0.1*env;
+            glow += (0.1/(0.1+rop.x*rop.x*rop.x))*glow_int*FLOWER_COL_CENTER;
             if(rop.x < res.dist)
             {
-                id += is_first ? 0 : 5;
+                //id += is_first ? 0 : 5;
                 vec2 tuv = rop.yz*0.1;
                 tuv.y += env;
                 vec3 txt = texture(TEXTURE,tuv).xyz;
@@ -88,6 +94,8 @@ HitInfo map(vec3 p)
             float env = texelFetch(BUF_A,ivec2(id,PONG_ENV_ROW),0).x;
             //float sph = length(p - pos) - 0.4;
             vec3 rop  = ropePong(p, id+PONG_BLOCK_OFFSET+PONG_BLOCK.z,BUF_A,env, hit_point);
+            float glow_int = smoothstep(0.051,0.,abs(rop.z*0.5-env))*0.5*env;
+            glow += (0.1/(0.1+rop.x*rop.x))*glow_int*FLOWER_COL_CENTER;
             //rop.x = min(rop.x,sph);
             if(rop.x < res.dist)
             {
@@ -115,6 +123,8 @@ HitInfo map(vec3 p)
             vec3 rop  = ropePerhi(p-displ, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A, env, hit_point);
             //rop.x = min(rop.x,sph); 
             float h = 0.;
+            float glow_int = smoothstep(0.051,0.,abs(rop.z*0.5-pow(env,0.5)))*0.5*pow(env,.85);
+            glow += (0.1/(0.1+rop.x*rop.x))*glow_int*PERHI_COL_CENTER;
             rop.x = smin(rop.x,center_sph,0.6,h);
             if(rop.x < res.dist)
             {
@@ -174,7 +184,7 @@ HitInfo map(vec3 p)
             }
         }
     }
-
+    //res.dist *= 0.7;
     return res;
 }
 
@@ -194,6 +204,21 @@ HitInfo intersect(vec3 ro, vec3 rd)
     }
     res.dist = d;
     return res;
+}
+
+float intersectSphere(vec3 ro, vec3 rd, vec3 pos, float rad)
+{
+    float min_dist = 0.01;
+    float max_dist = MAX_DIST;
+    float d = min_dist;
+    for(int i = 0; i < 80; i++)
+    {
+        vec3 p = ro + rd*d;
+        float s = length(p-pos)-rad;
+        if(d > max_dist || s < min_dist) break;
+        d += s;
+    }
+    return d;
 }
 
 
@@ -248,32 +273,86 @@ vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    // Normalized pixel coordinates (from 0 to 1)
-    vec2 uv = (fragCoord-0.5*iResolution.xy)/iResolution.y*2.;
-    vec3 ro = texelFetch(BUF_A,RO_COO,0).xyz;
-    //ro.xz *= rotate(mod(iTime,3.36)/3.36*TAU);
-    vec3 lookat = vec3(0);
-    mat3 cam = camera(ro, lookat, 0.);
-    vec3 rd = cam * normalize(vec3(uv,1));
-    HitInfo hit = intersect(ro,rd);
-    vec3 col = vec3(0);
-    if(hit.dist < 80.)
+    vec3 tot = vec3(0);
+#if AA > 1
+    for( int m=ZERO; m<AA; m++ )
+    for( int n=ZERO; n<AA; n++ )
     {
-        //hit.nor = normal(ro + rd*hit.dist);
-        hit.nor = normal(ro+rd*hit.dist);
-        vec3 lig_pos = vec3(1,10,0);
-        col = calcLight(hit,rd,lig_pos);
-        //col *= texelFetch(BUF_A,ivec2(hit.id,1),0).xxx*2.+0.1; 
-        col = max(col,vec3(0));        
+        // pixel coordinates
+        vec2 o = vec2(float(m),float(n)) / float(AA)  ;
+        vec2 uv = (2.0*(fragCoord+o)-iResolution.xy)/iResolution.y;
+#else
+        vec2 uv = (2.0*(fragCoord)-iResolution.xy)/iResolution.y;
+#endif
+        vec3 ro = false ? vec3(cos(iTime),0.5,sin(iTime))*20. : texelFetch(BUF_A,RO_COO,0).xyz;
+        vec3 lookat = vec3(0);
+        mat3 cam = camera(ro, lookat, 0.);
+        vec3 rd = cam * normalize(vec3(uv,1));
+        float rad = STAR_RAD;
+        vec2 sph = asphere(ro,rd,rad);
+        float d=  sph.x, d_refl = sph.y;
+        vec3 ero = ro+rd*d+d*0.03, enorm = normalize(ero), erd = reflect(rd,enorm);
+        erd = refract(erd,enorm,1.);
+        HitInfo hit = intersect(ero,erd);
+        vec3 col = vec3(0);
+        if(hit.dist < 40. && sph.x < 20.)
+        {
+            //hit.nor = normal(ro + rd*hit.dist);
+            hit.nor = normal(ero+erd*hit.dist);
+            vec3 lig_pos = vec3(1,10,0);
+            col = calcLight(hit,erd,lig_pos);    
+            //col *= texelFetch(BUF_A,ivec2(hit.id,1),0).xxx*2.+0.1; 
+            col = max(col,vec3(0));        
+        }
+        vec3 l = normalize(vec3(.7, 0.8, 0));
+        vec3 fCol = getSky(rd, l);
+        //if(sph.x < MAX_DIST) col = mix(clamp(col, 0., 1.), fCol, smoothstep(.14, .6, sph.y/MAX_DIST));
+        //if(false) 
+        {
+            
+            float d_refl = asphere(ro,rd,rad).y; //intersectSphere(ro,rd,vec3(0),rad);
+            if(d_refl < 100.)
+            {
+                vec3 rro = ro+rd*d_refl+d_refl*0.03, rnorm = normalize(rro), rrd = reflect(rd,rnorm);
+                rrd = refract(rrd,rnorm,.55);
+                float sph_diff = max(0,dot(-rnorm,vec3(2,5,0)))*0.5+0.5;
+                vec3 c_sph = vec3(0.9059, 0.9529, 0.0627)*sph_diff*0.01;
+                float fres = fresnel(.2,1.14,3.,rro-ro,-rnorm);
+                //col += max(vec3(0),c_sph+vec3(fres*0.02));
+                HitInfo reflection = intersect(rro,rrd);
+                if(reflection.dist < MAX_DIST)
+                {
+                    //hit.nor = normal(ro + rd*hit.dist);
+                    reflection.nor = normal(rro+rrd*reflection.dist);
+                    vec3 lig_pos = vec3(1,0,0);
+                    vec3 rcol = calcLight(reflection,rrd,lig_pos);
+                    //col *= texelFetch(BUF_A,ivec2(hit.id,1),0).xxx*2.+0.1; 
+                    rcol = max(rcol,vec3(0));
+                    col = mix(rcol,col,0.5);        
+                }
+
+            }
+           
+        
+        }
+        
+        vec3 feed = max(pow(texture(FEEDBACK,fragCoord/iResolution.xy).xyz,vec3(2.)),vec3(0));
+        //col = mix(col, feed, 0.2)*0.051+col*0.25;
+        int song_sect = getSongSection(MIDI);
+        vec3 sun1_pos = perhi_sect_displ(song_sect);
+        vec3 sun1 = is_perhi_on(song_sect) ? integrateLightFullView(ro-sun1_pos,rd,0.051,1.)*PERHI_COL_CENTER : vec3(0);
+        vec3 sun2_pos = flower_sect_displ(song_sect);
+        vec3 sun2 = is_flower_on(song_sect) ?  integrateLightFullView(ro-sun2_pos,rd,0.21,0.5)*FLOWER_COL_CENTER :  vec3(0);
+        //col += sun1+sun2*0.1;
+        
+        col = pow(col,vec3(.6445));
+        tot += col+glow;
+#if AA > 1
     }
-    vec3 feed = max(pow(texture(FEEDBACK,fragCoord/iResolution.xy).xyz,vec3(2.)),vec3(0));
-    col = mix(col, feed, 0.2)*0.5+col*0.8;
-    int song_sect = getSongSection(MIDI);
-    vec3 sun1_pos = perhi_sect_displ(song_sect);
-    vec3 sun1 = is_perhi_on(song_sect) ? integrateLightFullView(ro-sun1_pos,rd,0.051,1.)*PERHI_COL_CENTER : vec3(0);
-    vec3 sun2_pos = flower_sect_displ(song_sect);
-    vec3 sun2 = is_flower_on(song_sect) ?  integrateLightFullView(ro-sun2_pos,rd,0.21,0.5)*FLOWER_COL_CENTER :  vec3(0);
-    fragColor.xyz = pow(col+sun1+sun2, vec3(.4545));
+
+    tot /= float(AA);
+#endif
+    fragColor.xyz = pow(tot, vec3(.4545));
 }
 
 

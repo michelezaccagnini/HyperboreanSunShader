@@ -83,35 +83,6 @@
 				None,
 			],
 		),
-		BufferC: (
-			inputs: [
-				(
-					asset: Misc(BufferC),
-					sampler: Custom((
-						filter: linear,
-						wrap: clamp,
-						vflip: true,
-					)),
-				),
-				(
-					asset: Misc(BufferA),
-					sampler: Custom((
-						filter: linear,
-						wrap: clamp,
-						vflip: true,
-					)),
-				),
-				(
-					asset: Music(XTrackTure),
-					sampler: Custom((
-						filter: linear,
-						wrap: clamp,
-						vflip: true,
-					)),
-				),
-				None,
-			],
-		),
 		Image: (
 			inputs: [
 				(
