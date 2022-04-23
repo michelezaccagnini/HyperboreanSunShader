@@ -4,7 +4,13 @@
 #define MIDI iChannel3
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
+    vec2 o = vec2(0.0015,0);
     vec3 col = texture(BUF_B,fragCoord/iResolution.xy).xyz;//max(texture(BUF_C,fragCoord/iResolution.xy).xyz,texture(BUF_B,fragCoord/iResolution.xy).xyz); 
+    col += texture(BUF_B,fragCoord/iResolution.xy+o).xyz;
+    col += texture(BUF_B,fragCoord/iResolution.xy+o.yx).xyz;
+    col += texture(BUF_B,fragCoord/iResolution.xy-o).xyz;
+    col += texture(BUF_B,fragCoord/iResolution.xy-o.yx).xyz;
+    col /= 4.;
     #if 0
     //fragColor = vec4(getSongSection(MIDI) == 2 ? 1 : 0);
     
