@@ -105,3 +105,12 @@ target_link_libraries(hyperborean-sun PUBLIC
     winmm
     midifile
 )
+
+# Generate frames on disk
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/frames")
+add_custom_target(frames
+    WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/frames"
+    COMMAND hyperborean-sun
+    COMMENT "Generating frames for video."
+) 
+add_dependencies(frames hyperborean-sun)

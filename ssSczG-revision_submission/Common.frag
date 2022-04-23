@@ -1,5 +1,7 @@
 
 #define TIME_UNIT 0.12 // 120 ms = 125 bpm
+#define FPS 30
+const float STREAM_SLIDE = FPS == 60 ? 0.5 : 1.;  
 
 //Flower uniforms
 #define ROPE_POINTS 7
@@ -11,6 +13,7 @@ const ivec4 FLOWER_BLOCK = ivec4(ROPE_POINTS,
                                 NUM_FLOWER_PETALS, //5
                                 FLOWER_BLOCK_OFFSET);
 const int FLOWER_ENV_ROW = FLOWER_BLOCK.y-1;
+#define FLOWER_COL_CENTER vec3(0.3059, 0.4039, 0.8941)
 
 //Pong uniforms
 #define PONG_POINTS 7
@@ -28,6 +31,7 @@ const int PERHI_BLOCK_OFFSET = PONG_BLOCK.y+PONG_BLOCK_OFFSET;//38
 const ivec4 PERHI_BLOCK = ivec4(PERHI_POINTS, NUM_PERHI*2+1, NUM_PERHI,PERHI_BLOCK_OFFSET);
 const int PERHI_ENV_ROW = PERHI_BLOCK_OFFSET + PERHI_BLOCK.y-1;
 #define PERHI_SPHERE_RADIUS 5.5
+#define PERHI_COL_CENTER vec3(0.9451, 0.8549, 0.0392)
 
 
 #define LAST_SECT_DISPLACE 10.
@@ -54,7 +58,7 @@ const ivec4 DRUMS_BLOCK = ivec4(DRUMS_POINTS, NUM_DRUMS*2+1, NUM_DRUMS,DRUMS_BLO
 const int DRUMS_ENV_ROW = DRUMS_BLOCK_OFFSET + DRUMS_BLOCK.y-1;
 const int[NUM_DRUMS] DRUMS_TIME_WIDTH = int[NUM_DRUMS](3,4,3,3,4,3,3,3);
 #define DRUM_TUBE_RADIUS 6.
-#define DRUMS_LENGTH 1.2
+#define DRUMS_LENGTH 0.52
 
 
 //Camera uniforms
@@ -74,7 +78,7 @@ const int BASS_BLOCK_OFFSET = RO_BLOCK.y + RO_BLOCK_OFFSET;
 const ivec4 BASS_BLOCK = ivec4(BASS_POINTS, NUM_BASS*2+1, NUM_BASS, BASS_BLOCK_OFFSET);
 const int BASS_ENV_ROW = BASS_BLOCK_OFFSET + BASS_BLOCK.y - 1;
 #define BASS_TUBE_RADIUS 8.
-#define BASS_LENGTH 0.8
+#define BASS_LENGTH 0.5
 
 
 //inner sphere
@@ -176,6 +180,22 @@ float getCCval (int CC, int channel,sampler2D midi_data)
     return ccv;
 }
 
+//Lighting Utils
+float fresnel(float bias, float scale, float power, vec3 I, vec3 N)
+{
+    return bias + scale * pow(1.0 + dot(I, N), power);
+}
+
+//https://www.shadertoy.com/view/7lsBR8
+// Very lame sky with sun-like object. Basically, this was a quick hack to emulate
+// the "Forest Blurred" cube map... It needs work. :)
+vec3 getSky(vec3 rd, vec3 ld){
+
+    float lgt = max(dot(rd, ld), 0.);
+    vec3 sky = mix(vec3(.1, .05, .04), vec3(.95, .97, 1)*3., clamp((rd.y + .5),0., 1.))/1.5;
+    sky = mix(sky, vec3(8), pow(lgt, 8.));
+    return min(sky*vec3(1, 1.1, 1.3), 1.);
+}
 //==========================================================================================
 //ONESHADE code
 //==========================================================================================
@@ -194,6 +214,7 @@ float integrateLightFullView(in vec3 ro, in vec3 rd, in float k, in float d)
 //==========================================================================================
 //NR4 code
 //==========================================================================================
+
 const vec3 c = vec3(1.,0.,-1.);
 const float pi = acos(-1.);
 // Determine zeros of k.x*x^2+k.y*x+k.z
@@ -303,7 +324,7 @@ float smin( float a, float b, float k , inout float h )
     return mix( b, a, h ) - k*h*(1.0-h);
 }
 
-vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float thick, float env, inout vec3 hit_point, inout vec3 nor)
+vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point)
 {
     float dist = 1000.;
     vec2 uv;
@@ -324,23 +345,21 @@ vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float thick, float env, inou
         const float span = 1./4.;
         float bez_ind = floor(float(i)/2.);
         vec2 lwise =vec2(t*span+bez_ind*span,t);
-        float l = clamp(pow(lwise.x,1.),0.,1.);
-        float w =smoothstep(0.4,0.,abs(l-pow(env,0.5)))*smoothstep(0.5,0.7,l);
+        float l = clamp(pow(lwise.x,0.8),0.,1.);
+        float w =smoothstep(0.4,0.,abs(l-pow(env,0.5)))*smoothstep(0.2,0.6,l);
         
-        float d = dbox3(c_point, vec3(.1, w*0.3+0.11, w*0.3+0.09));
+        float d = dbox3(c_point, vec3(.1, w*0.4+0.11, w*0.4+0.09));
         if(d < dist) 
         {
-            nor = norm;
             hit_point = c_point;
             uv = vec2(c_point.z*w+w*0.5,lwise.x);
         }
-        dist =  min(dist,d);//smin(dist,d, 0.18);   
+        dist =  min(dist,d); 
     }
-    //uv not returned(add code)
     return vec3(dist, uv);
 }
 
-vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point, inout vec3 nor)
+vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point)
 {
     float dist = 1000.;
     vec2 uv;
@@ -367,17 +386,49 @@ vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_poi
         float d = dbox3(c_point, vec3(.1, .3*w, w));
         if(d < dist) 
         {
-            nor = norm;
             hit_point = c_point;
             uv = vec2(c_point.z*w+w*0.5,lwise.x);
         }
-        dist =  min(dist,d);//smin(dist,d, 0.18);   
+        dist =  min(dist,d);  
     }
-    //uv not returned(add code)
     return vec3(dist, uv);
 }
 
-vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float thick, float env, inout vec3 hit_point, inout vec3 nor)
+vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point)
+{
+    float dist = 1000.;
+    vec2 uv;
+    for(int i = 0; i < ROPE_POINTS-2; i+=2)
+    {
+        vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
+        vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
+        vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
+        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
+        vec2 b = dtspline3(p,pp1,pp2,pp3);
+        float t = b.y;
+        vec3 norm  = nspline3(p,t,pp1,pp2,pp3);
+        vec3 point = xspline3(p,t,pp1,pp2,pp3);
+        mat3 m = ortho(norm),
+            mt = transpose(m);
+        vec3 c_point = mt*(p-point);
+        
+        const float span = 1./4.;
+        float bez_ind = floor(float(i)/2.);
+        vec2 lwise =vec2(t*span+bez_ind*span,t);
+        float l = pow(lwise.x,1.7);
+        float w =smoothstep(0.4,0.,abs(l-(1.-pow(env,0.5))))*0.8*smoothstep(0.7,0.6, l);
+        float d = dbox3(c_point, vec3(.1, w*0.2+0.15, w+0.05));
+        if(d < dist) 
+        {
+            hit_point = c_point;
+            uv = vec2(c_point.z*w+w*0.5,lwise.x);
+        }
+        dist =  min(dist,d); 
+    }
+    return vec3(dist, uv);
+}
+
+vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point)
 {
     float dist = 1000.;
     vec2 uv;
@@ -399,47 +450,12 @@ vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float thick, float env, inou
         float bez_ind = floor(float(i)/2.);
         vec2 lwise =vec2(t*span+bez_ind*span,t);
         float l = pow(lwise.x,0.7);
-        float w =smoothstep(0.4,0.,abs(l-(1.-pow(env,0.5))))*0.8*smoothstep(0.8,0.6, l);//*0.2+0.4*smoothstep(0.2,0.4,lwise.x);
-        float d = dbox3(c_point, vec3(.1, w*0.2+0.15, w+0.05));
+        float w =smoothstep(0.4,0.,abs(l-(1.-pow(env,0.5))))*0.8*smoothstep(0.8,0.6, l);
+        //float l = smoothstep(0.2,0.7,lwise.x)+0.01;
+        
+        float d = dbox3(c_point, vec3(.01, .08+w*0.3, 0.1*w));
         if(d < dist) 
         {
-            nor = norm;
-            hit_point = c_point;
-            uv = vec2(c_point.z*w+w*0.5,lwise.x);
-        }
-        dist =  min(dist,d);//smin(dist,d, 0.18);   
-    }
-    //uv not returned(add code)
-    return vec3(dist, uv);
-}
-
-vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 hit_point, inout vec3 nor)
-{
-    float dist = 1000.;
-    vec2 uv;
-    for(int i = 0; i < ROPE_POINTS-2; i+=2)
-    {
-        vec3 pp1  = texelFetch(text,ivec2(i+0,rope_id),0).xyz;
-        vec3 pp2  = texelFetch(text,ivec2(i+1,rope_id),0).xyz;
-        vec3 pp3  = texelFetch(text,ivec2(i+2,rope_id),0).xyz;
-        if(length(pp1-pp2) < 0.001) return vec3(100);//avoid mapping static objects
-        vec2 b = dtspline3(p,pp1,pp2,pp3);
-        float t = b.y;
-        vec3 norm  = nspline3(p,t,pp1,pp2,pp3);
-        vec3 point = xspline3(p,t,pp1,pp2,pp3);
-        mat3 m = ortho(norm),
-            mt = transpose(m);
-        vec3 c_point = mt*(p-point);
-        
-        const float span = 1./4.;
-        float bez_ind = floor(float(i)/2.);
-        vec2 lwise =vec2(t*span+bez_ind*span,t);
-        float l = smoothstep(0.2,0.7,lwise.x)+0.01;
-        
-        float d = dbox3(c_point, vec3(.01, .08, 0.1+sin(l*TAU*0.55)*.4));
-        if(d < dist) 
-        {
-            nor = norm;
             hit_point = c_point;
             uv = vec2(c_point.z*0.8+0.2,lwise.x);
         }
@@ -449,7 +465,7 @@ vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 h
     return vec3(dist, uv);
 }
 
-vec3 rope_flower2(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 hit_point, inout vec3 nor)
+vec3 rope_flower2(vec3 p, int rope_id, sampler2D text, inout vec3 hit_point)
 {
     float dist = 1000.;
     vec2 uv;
@@ -475,7 +491,6 @@ vec3 rope_flower2(vec3 p, int rope_id, sampler2D text, float thick, inout vec3 h
         float d = dbox3(c_point, vec3(.01, .01, 0.01));
         if(d < dist) 
         {
-            nor = norm;
             hit_point = c_point;
             uv = vec2(c_point.z*0.1+0.1,lwise.x);
         }
@@ -502,35 +517,35 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
     {
         float revolutions = 4.;
         float ang = y * TAU * revolutions;
-        sli = 0.1;
+        sli = 0.1*STREAM_SLIDE;
         tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
     }
     else if( song_sect == 1 || song_sect == 2)
     {
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
-        sli = 0.1;
+        sli = 0.1*STREAM_SLIDE;
         tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
     }
     else if(song_sect == 3)
     {
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
-        sli = 0.05;
+        sli = 0.05*STREAM_SLIDE;
         tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
     }
     else if(song_sect == 4)
     {
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
-        sli = 0.05;
+        sli = 0.05*STREAM_SLIDE;
         tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
     }
     else if(song_sect > 4 )
     {
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
-        sli = 0.15;
+        sli = 0.05*STREAM_SLIDE;
         tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
     }
     return slide(cur,tar, sli);
@@ -724,7 +739,7 @@ vec3 getPosFlower(int id, float env, sampler2D midi)
     //pitch position : latitude
     float longi = data.x*TAU*0.8;
     float lati =  data.y*TAU*0.8;
-    pos = vec3(cos(longi),data.y*2.-1.+pow(env,1.5)*0.4-0.2,sin(longi))*4.;//*vec3(data.x,1,data.x)*4.+FULCRUM1;
+    pos = vec3(cos(longi),cos(float(id))+data.y*2.-1.+pow(env,0.5)*1.4-0.2,sin(longi))*4.;//*vec3(data.x,1,data.x)*4.+FULCRUM1;
     //pos = vec3(cos(data.z*TAU),float(id)/4.*2.-1.,sin(data.z*TAU))*3.;
     //pos = vec3( float(id),data.y*3.,0);
 
@@ -733,7 +748,7 @@ vec3 getPosFlower(int id, float env, sampler2D midi)
 
 vec3 flower_sect_displ(int song_sect)
 {
-    return song_sect < 5? vec3(0) : vec3(0,0,-LAST_SECT_DISPLACE);
+    return song_sect < 5 || song_sect > 10? vec3(0) : vec3(0,0,-LAST_SECT_DISPLACE);
 }
 
 vec3 getPosPong(int id, float env, sampler2D midi)
@@ -750,7 +765,7 @@ vec3 getPosPong(int id, float env, sampler2D midi)
     float lati =  data.y*TAU*0.8;
     float offs = float(id-8);
     pos = vec3(offs*20.+data.x*0.3,0,offs*1.+data.y*0.3);
-    pos.xz *= 0.3;
+    pos.xz *= 0.2;
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
     vec3 spherical_pos = to_cartesian(pos.xz)*PERHI_SPHERE_RADIUS+data.z*2.; 
     spherical_pos.y -= env*1.;
@@ -830,7 +845,7 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             float env = texelFetch(text, ivec2(id, FLOWER_ENV_ROW),0).x;
             return getPosFlower(id,env, midi);
         } 
-        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.6);
+        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.6*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
@@ -868,7 +883,7 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
     {
         int id = tex_coo.x;
         int chan = id + chan_offset;
-        return getEnvelope(id, chan, FLOWER_ENV_ROW, 5., midi, text);
+        return getEnvelope(id, chan, FLOWER_ENV_ROW, 8., midi, text);
     }
 }
 
@@ -888,9 +903,11 @@ vec3 animPongData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         {
             int id = tex_coo.y - block_offset ;
             float env = texelFetch(text, ivec2(id, PONG_ENV_ROW),0).x;
-            return getPosPong(id+chan_offset,env, midi);
+            vec3 tar = getPosPong(id+chan_offset,env, midi);
+            vec3 cur = texelFetch(text,tex_coo,0).xyz;
+            return slide(tar, cur, 0.5*STREAM_SLIDE);
         } 
-        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.5);
+        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.5*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
@@ -935,7 +952,7 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             tar.xz += tar.xz*rotate(iTime*2.083)*0.3;
             return vec4(slide(tar, cur, 0.5),0);
         } 
-        else  return iFrame < 10 ? vec4(1) :  pix_stream4(tex_coo,text,0.8);
+        else  return iFrame < 10 ? vec4(1) :  pix_stream4(tex_coo,text,0.8*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
@@ -975,9 +992,9 @@ vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             float env = texelFetch(text, ivec2(id, DRUMS_ENV_ROW),0).x;
             vec3 cur = texelFetch(text,tex_coo,0).xyz;
             vec3 tar = getPosDrums(id,env, midi);
-            return slide(tar, cur, 0.5);
+            return slide(tar, cur, 0.5*STREAM_SLIDE);
         } 
-        else  return iFrame < 10 ? vec3(1) :  pix_stream(tex_coo,text,0.5);
+        else  return iFrame < 10 ? vec3(1) :  pix_stream(tex_coo,text,0.5*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
@@ -991,7 +1008,7 @@ vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         pos *= 1.+stretch_ind*DRUMS_LENGTH;
         pos.z += stretch_ind*1.2;
         int song_sect  = getSongSection(midi);
-        if(song_sect > 5) pos.z -= LAST_SECT_DISPLACE;
+        pos.z +=  song_sect > 5 ? flower_sect_displ(song_sect).z : 0.;        
         return pos;
     }
     else if(block_id == 2)
@@ -1022,9 +1039,9 @@ vec3 animBassData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             float env = texelFetch(text, ivec2(id, BASS_ENV_ROW),0).x;
             vec3 cur = texelFetch(text,tex_coo,0).xyz;
             vec3 tar = getPosBass(id,env, midi);
-            return slide(tar, cur, 0.5);
+            return slide(tar, cur, 0.5*STREAM_SLIDE);
         } 
-        else  return iFrame < 10 ? vec3(1) :  pix_stream(tex_coo,text,0.5);
+        else  return iFrame < 10 ? vec3(1) :  pix_stream(tex_coo,text,0.5*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
