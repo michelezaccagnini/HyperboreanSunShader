@@ -67,7 +67,7 @@ const int RO_BLOCK_OFFSET = DRUMS_BLOCK.y+DRUMS_BLOCK_OFFSET;
 const ivec4 RO_BLOCK = ivec4(1,1,1,RO_BLOCK_OFFSET);
 const ivec4 RO_CC = ivec4(80,81,82,83);
 const ivec2 RO_COO = ivec2(0,RO_BLOCK_OFFSET);
-#define RO_DIST_MULT 40.
+#define RO_DIST_MULT 60.
 
 //Bass uniforms
 #define BASS_POINTS 7

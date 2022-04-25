@@ -37,7 +37,7 @@ struct HitInfo
     float env;
 };
 
-vec3 glow;
+float glow;
 
 HitInfo map(vec3 p)
 {
@@ -70,7 +70,7 @@ HitInfo map(vec3 p)
             float h = 0.;
             rop.x = smin(c_sphere,rop.x,0.7,h);
             float glow_int = smoothstep(0.051,0.,abs(rop.z*0.5-(1.-pow(env,0.5))))*0.1*env;
-            glow += (0.1/(0.1+rop.x*rop.x*rop.x))*glow_int*FLOWER_COL_CENTER;
+            glow += (0.1/(0.1+rop.x*rop.x*rop.x))*glow_int;
             if(rop.x < res.dist)
             {
                 //id += is_first ? 0 : 5;
@@ -284,7 +284,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 #else
         vec2 uv = (2.0*(fragCoord)-iResolution.xy)/iResolution.y;
 #endif
-        vec3 ro = false ? vec3(cos(iTime),0.5,sin(iTime))*20. : texelFetch(BUF_A,RO_COO,0).xyz;
+        vec3 ro = false ? vec3(cos(iTime),0.5,sin(iTime))*10. : texelFetch(BUF_A,RO_COO,0).xyz;
         vec3 lookat = vec3(0);
         mat3 cam = camera(ro, lookat, 0.);
         vec3 rd = cam * normalize(vec3(uv,1));
@@ -346,13 +346,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         //col += sun1+sun2*0.1;
         
         col = pow(col,vec3(.6445));
-        tot += col+glow;
+        tot += col;
 #if AA > 1
     }
 
     tot /= float(AA);
 #endif
-    fragColor.xyz = pow(tot, vec3(.4545));
+    fragColor= = vec4(pow(tot, vec3(.4545),glow));
 }
 
 
