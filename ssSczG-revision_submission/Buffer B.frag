@@ -20,7 +20,6 @@ each dimension is mapped to a parameter:
 2. velocity
 3. pitch
 */
-#define MAX_DIST 100.
 struct HitInfo
 {
     float dist;
@@ -39,7 +38,7 @@ struct HitInfo
 
 float glow;
 
-HitInfo map(vec3 p)
+HitInfo map(vec3 p, bool refl)
 {
     HitInfo res;
     res.dist = MAX_DIST;
@@ -68,9 +67,11 @@ HitInfo map(vec3 p)
             float c_sphere = length(p-sp_pos)-0.3;
             hit_point = hit_point;//is_first ? hit_point : hit_point2;
             float h = 0.;
-            rop.x = smin(c_sphere,rop.x,0.7,h);
-            float glow_int = smoothstep(0.051,0.,abs(rop.z*0.5-(1.-pow(env,0.5))))*0.1*env;
-            glow += (0.1/(0.1+rop.x*rop.x*rop.x))*glow_int;
+            float d = rop.x;
+            rop.x = smin(c_sphere,d,0.7,h);
+            float glow_int = smoothstep(0.051,0.,abs(rop.z*0.8-(1.-pow(env,0.5))))*smoothstep(STAR_RAD,0.,length(p));
+            glow += (2.5/(0.3+rop.x*rop.x*rop.x))*glow_int;
+            if(c_sphere< d && !refl) glow += smoothstep(0.3,0.2,(0.01/(0.1+rop.x*rop.x))*pow(1.-h,0.5))*0.01;
             if(rop.x < res.dist)
             {
                 //id += is_first ? 0 : 5;
@@ -95,7 +96,7 @@ HitInfo map(vec3 p)
             //float sph = length(p - pos) - 0.4;
             vec3 rop  = ropePong(p, id+PONG_BLOCK_OFFSET+PONG_BLOCK.z,BUF_A,env, hit_point);
             float glow_int = smoothstep(0.051,0.,abs(rop.z*0.5-env))*0.5*env;
-            glow += (0.1/(0.1+rop.x*rop.x))*glow_int*FLOWER_COL_CENTER;
+            glow += (1.1/(0.1+rop.x*rop.x))*glow_int;
             //rop.x = min(rop.x,sph);
             if(rop.x < res.dist)
             {
@@ -124,7 +125,7 @@ HitInfo map(vec3 p)
             //rop.x = min(rop.x,sph); 
             float h = 0.;
             float glow_int = smoothstep(0.051,0.,abs(rop.z*0.5-pow(env,0.5)))*0.5*pow(env,.85);
-            glow += (0.1/(0.1+rop.x*rop.x))*glow_int*PERHI_COL_CENTER;
+            glow += (0.1/(0.1+rop.x*rop.x))*glow_int;
             rop.x = smin(rop.x,center_sph,0.6,h);
             if(rop.x < res.dist)
             {
@@ -188,7 +189,7 @@ HitInfo map(vec3 p)
     return res;
 }
 
-HitInfo intersect(vec3 ro, vec3 rd)
+HitInfo intersect(vec3 ro, vec3 rd, bool refl)
 {
     HitInfo res;
     float min_dist = 0.01;
@@ -198,7 +199,7 @@ HitInfo intersect(vec3 ro, vec3 rd)
     for(int i = 0; i < 80; i++)
     {
         vec3 p = ro + rd*d;
-        res = map(p);
+        res = map(p, refl);
         if(d > max_dist || abs(res.dist) < min_dist) break;
         d += res.dist;
     }
@@ -206,30 +207,16 @@ HitInfo intersect(vec3 ro, vec3 rd)
     return res;
 }
 
-float intersectSphere(vec3 ro, vec3 rd, vec3 pos, float rad)
-{
-    float min_dist = 0.01;
-    float max_dist = MAX_DIST;
-    float d = min_dist;
-    for(int i = 0; i < 80; i++)
-    {
-        vec3 p = ro + rd*d;
-        float s = length(p-pos)-rad;
-        if(d > max_dist || s < min_dist) break;
-        d += s;
-    }
-    return d;
-}
-
-
 vec3 normal( in vec3 pos)
 {
     const float ep = 5.e-4;
     vec2 e = vec2(1.,0.);
-    float s = map(pos).dist;
-    return normalize( vec3(map( pos + e.xyy*ep).dist, 
-                           map( pos + e.yxy*ep).dist, 
-                           map( pos + e.yyx*ep).dist) - s);
+    bool refl = false;
+    float s = map(pos,refl).dist;
+    
+    return normalize( vec3(map( pos + e.xyy*ep,refl).dist, 
+                           map( pos + e.yxy*ep,refl).dist, 
+                           map( pos + e.yyx*ep,refl).dist) - s);
 }
 
 vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
@@ -288,38 +275,47 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         vec3 lookat = vec3(0);
         mat3 cam = camera(ro, lookat, 0.);
         vec3 rd = cam * normalize(vec3(uv,1));
+        bool refl = false;
+        HitInfo hit = intersect(ro,rd,refl);
+        bool is_flo_perhi = any(equal(ivec2(hit.id.x),ivec2(1,3)));
         float rad = STAR_RAD;
         vec2 sph = asphere(ro,rd,rad);
-        float d=  sph.x, d_refl = sph.y;
-        vec3 ero = ro+rd*d+d*0.03, enorm = normalize(ero), erd = reflect(rd,enorm);
-        erd = refract(erd,enorm,1.);
-        HitInfo hit = intersect(ero,erd);
+        if( is_flo_perhi)
+        {
+            refl = true;   
+            float d=  sph.x, d_refl = sph.y;
+            vec3 ero = ro+rd*d+d*0.03, enorm = normalize(ro), erd = reflect(rd,enorm);
+            erd = refract(erd,enorm,0.85);
+            hit = intersect(ero,erd, refl);
+        }
+        
         vec3 col = vec3(0);
-        if(hit.dist < 40. && sph.x < 20.)
+        if(hit.dist < 40. )
         {
             //hit.nor = normal(ro + rd*hit.dist);
-            hit.nor = normal(ero+erd*hit.dist);
+            hit.nor = normal(ro+rd*hit.dist);
             vec3 lig_pos = vec3(1,10,0);
-            col = calcLight(hit,erd,lig_pos);    
+            col = calcLight(hit,rd,lig_pos);    
             //col *= texelFetch(BUF_A,ivec2(hit.id,1),0).xxx*2.+0.1; 
             col = max(col,vec3(0));        
         }
         vec3 l = normalize(vec3(.7, 0.8, 0));
         vec3 fCol = getSky(rd, l);
         //if(sph.x < MAX_DIST) col = mix(clamp(col, 0., 1.), fCol, smoothstep(.14, .6, sph.y/MAX_DIST));
-        //if(false) 
+        if(false) 
         {
             
-            float d_refl = asphere(ro,rd,rad).y; //intersectSphere(ro,rd,vec3(0),rad);
+            float d_refl = asphere(ro,rd,rad).y; 
             if(d_refl < 100.)
             {
                 vec3 rro = ro+rd*d_refl+d_refl*0.03, rnorm = normalize(rro), rrd = reflect(rd,rnorm);
-                rrd = refract(rrd,rnorm,.55);
+                rrd = refract(rrd,rnorm,.85);
                 float sph_diff = max(0,dot(-rnorm,vec3(2,5,0)))*0.5+0.5;
                 vec3 c_sph = vec3(0.9059, 0.9529, 0.0627)*sph_diff*0.01;
                 float fres = fresnel(.2,1.14,3.,rro-ro,-rnorm);
+                refl = true;
                 //col += max(vec3(0),c_sph+vec3(fres*0.02));
-                HitInfo reflection = intersect(rro,rrd);
+                HitInfo reflection = intersect(rro,rrd,refl);
                 if(reflection.dist < MAX_DIST)
                 {
                     //hit.nor = normal(ro + rd*hit.dist);
@@ -351,8 +347,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     }
 
     tot /= float(AA);
+    glow /= float(AA);
 #endif
-    fragColor= = vec4(pow(tot, vec3(.4545),glow));
+    float g = slide(texture(FEEDBACK,fragCoord/iResolution.xy).w,glow,0.5);
+    fragColor= vec4(tot, g);
 }
 
 
