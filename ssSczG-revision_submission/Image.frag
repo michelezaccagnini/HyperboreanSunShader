@@ -19,24 +19,31 @@ float get_bump(vec3 p)
     vec3 t = texture(BUF_B,uv.xy).xyz*0.8*uv.z;
     return t.x*0.5;
 }
-vec3 normal(vec3 ro, vec3 rd, float rad, inout vec3 norm_back)
+
+vec3 get_bump_norm(vec3 n, vec2 uv)
 {
-    float dx = 5.e-4;
-    vec2 c = vec2(1,0);
-    vec2 s = asphere(ro,rd,rad);
-   
-    float bumf= get_bump(ro+rd*s.x)*BUMPFACTOR, bumb = get_bump(ro+rd*s.y)*BUMPFACTOR;
-    norm_back =normalize(vec3(
-                          asphere(ro,rd+dx*c.xyy,rad-bumb).y,
-                          asphere(ro,rd+dx*c.yxy,rad-bumb).y,
-                          asphere(ro,rd+dx*c.yyx,rad-bumb).y
-                        ) - s.y);
-    return normalize(vec3(
-              asphere(ro,rd+dx*c.xyy,rad-bumf).x,
-              asphere(ro,rd+dx*c.yxy,rad-bumf).x,
-              asphere(ro,rd+dx*c.yyx,rad-bumf).x
-            ) - s.x);
+    vec3 uaxis = normalize(cross(vec3(0.0,1.0,0.0), n));
+	vec3 vaxis = normalize(cross(uaxis, n));
+	mat3 mattanspace = mat3
+	(
+		uaxis,
+		vaxis,
+		n
+	);
+    float delta = -1.0/512.0;
+    vec3 a = texture(BUF_B, uv + vec2(0.0, 0.0)).xyz;
+	float A = dot(a,a);
+    vec3 b = texture(BUF_B, uv + vec2(delta, 0.0)).xyz;
+	float B = dot(b,b);
+    vec3 c = texture(BUF_B, uv + vec2(0.0, delta)).xyz;
+    float C = dot(c,c);
+
+
+	vec3 norm = normalize(vec3(B - A, C - A, 0.25));
+
+	return normalize(mattanspace * norm);
 }
+
 vec3 blinn_phong(vec3 p, vec3 rd, vec3 light, vec3 norm)
 {
     vec3 col_ambient = vec3(0.1);
@@ -48,41 +55,6 @@ vec3 blinn_phong(vec3 p, vec3 rd, vec3 light, vec3 norm)
 
 }
 
-float sphDensity( vec3  ro, vec3  rd,   // ray origin, ray direction
-                  vec3  sc, float sr,   // sphere center, sphere radius
-                  float dbuffer )       // depth buffer
-{
-    // normalize the problem to the canonical sphere
-    float ndbuffer = dbuffer / sr;
-    vec3  rc = (ro - sc)/sr;
-	
-    // find intersection with sphere
-    float b = dot(rd,rc);
-    float c = dot(rc,rc) - 1.0;
-    float h = b*b - c;
-
-    // not intersecting
-    if( h<0.0 ) return 0.0;
-	
-    h = sqrt( h );
-    
-    //return h*h*h;
-
-    float t1 = -b - h;
-    float t2 = -b + h;
-
-    // not visible (behind camera or behind ndbuffer)
-    if( t2<0.0 || t1>ndbuffer ) return 0.0;
-
-    // clip integration segment from camera to ndbuffer
-    t1 = max( t1, 0.0 );
-    t2 = min( t2, ndbuffer );
-
-    // analytical integration of an inverse squared density
-    float i1 = -(c*t1 + b*t1*t1 + t1*t1*t1/3.0);
-    float i2 = -(c*t2 + b*t2*t2 + t2*t2*t2/3.0);
-    return (i2-i1)*(3.0/4.0);
-}
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
@@ -101,19 +73,20 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     //b = get_bump(ro+rd*sph.y);
     //sph.y = asphere(ro,rd,rad-b).y;
     float front=  sph.x, back = sph.y;
-    vec3 fr = get_uv(ro+rd*front), bk = get_uv(ro+rd*back);
-    vec3 txf = texture(BUF_B,fr.xy).xyz*1.0*fr.z;
-    vec3 txb = texture(BUF_B,bk.xy).xyz*1.0*bk.z;
-    float dens = sphDensity(ro,rd,vec3(0),STAR_RAD,1000.);
-    vec3 p = ro+rd*sph.x;
+    vec3 uv_fr = get_uv(ro+rd*front), uv_bk = get_uv(ro+rd*back);
+    vec3 txf = texture(BUF_B,uv_fr.xy).xyz*1.0*uv_fr.z;
+    vec3 txb = texture(BUF_B,uv_bk.xy).xyz*1.0*uv_bk.z;
     
     if(sph.x < MAX_DIST && sph.x > 0.2)
     {
         glow *= 0.1;
-        vec3 nba = vec3(0);
-        vec3 nfr = normal(ro,rd,STAR_RAD,nba);
-        col += blinn_phong(ro+rd*front, rd, vec3(0,1,0),nfr)*(glow+0.1);
-        col += blinn_phong(ro+rd*back, rd, vec3(0,1,0),nba)*(glow+0.1);
+        vec3 norm_front = normalize(ro+rd*sph.x), norm_back = normalize(ro+rd*sph.y);
+        // bump mapping
+	    vec3 surf_norm_front = get_bump_norm(norm_front,uv_fr.xy), 
+             surf_norm_back = get_bump_norm(norm_back , uv_bk.xy);
+        
+        col += blinn_phong(ro+rd*front, rd, vec3(0,1,0),surf_norm_front);
+        col += blinn_phong(ro+rd*back , rd, vec3(0,1,0),surf_norm_back );
         col += txf+txb;
         //col = nfr;
         //col = vec3(sph_uv1.xxx);
@@ -137,6 +110,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     #else
     //col = dot(col,col) > 0.01 ? min(vec3(glow),col): col;
     //glow *= dot(col,col) > 0.1 ? 0. : 2.;
-    fragColor = vec4(pow(col+vec3(clamp(glow,0.,1.)),vec3(.6545)),0.);
+    fragColor = vec4(pow(col+clamp(glow,0.,1.),vec3(.6545)),0.);
     #endif
 }

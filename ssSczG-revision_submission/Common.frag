@@ -58,7 +58,7 @@ const int DRUMS_BLOCK_OFFSET = PERLO_BLOCK.y+PERLO_BLOCK_OFFSET;
 const ivec4 DRUMS_BLOCK = ivec4(DRUMS_POINTS, NUM_DRUMS*2+1, NUM_DRUMS,DRUMS_BLOCK_OFFSET);
 const int DRUMS_ENV_ROW = DRUMS_BLOCK_OFFSET + DRUMS_BLOCK.y-1;
 const int[NUM_DRUMS] DRUMS_TIME_WIDTH = int[NUM_DRUMS](3,4,3,3,4,3,3,3);
-#define DRUMS_LENGTH 0.52
+#define DRUMS_LENGTH 0.72
 
 
 //Camera uniforms
@@ -427,8 +427,8 @@ vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         float bez_ind = floor(float(i)/2.);
         vec2 lwise =vec2(t*span+bez_ind*span,t);
         float l = pow(lwise.x,1.7);
-        float w =smoothstep(0.4,0.,abs(l-(1.-pow(env,0.5))))*0.1*smoothstep(0.7,0.6, l);
-        float d = dbox3(c_point, vec3(.1, w*0.2+0.15, w+0.05));
+        float w =smoothstep(0.4,0.,abs(l-(1.-pow(env,0.5))))*0.1*smoothstep(0.7,0.6, l)*0.02+0.15;
+        float d = dbox3(c_point, vec3(.1, w, 0.01*(cos(l*108.55*env+10.55+float(i)*23.055)+1.*0.5))+0.1);
         if(d < dist) 
         {
             hit_point = c_point;
@@ -436,7 +436,7 @@ vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         }
         dist =  min(dist,d); 
     }
-    return vec3(dist, uv);
+    return vec3(dist*1.05, uv);
 }
 
 vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_point)
@@ -817,10 +817,10 @@ vec3 getPosDrums(int id, float env, sampler2D midi)
     data = pow(data,vec3(0.5));
     //data.y = pow(data.y,0.5);
     env = smoothstep(0.051,0.3,env);
-    float offs = float(id)/7.;
-    float ang = offs*TAU+sect*0.1+data.x*0.;
+    float offs = float(id)/8.;
+    float ang = offs*TAU+sect*0.1+data.x*0.1;
     float rad = STAR_RAD;
-    vec3 pos = vec3(rad*cos(ang),rad*sin(ang),-4.+(data.z*0.1));
+    vec3 pos = vec3(rad*cos(ang),rad*sin(ang),-3.+(data.z*0.1));
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
     return pos;
 }

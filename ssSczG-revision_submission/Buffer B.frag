@@ -124,8 +124,9 @@ HitInfo map(vec3 p, bool refl)
             vec3 rop  = ropePerhi(p-displ, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A, env, hit_point);
             //rop.x = min(rop.x,sph); 
             float h = 0.;
-            float glow_int = smoothstep(0.051,0.,abs(rop.z*0.5-pow(env,0.5)))*0.5*pow(env,.85);
-            glow += (0.1/(0.1+rop.x*rop.x))*glow_int;
+            //rop.z = clamp(rop.z,0.2,0.9);
+            float glow_int = smoothstep(0.04,0.,abs(rop.z*0.8-pow(env,0.6)))*pow(rop.z,2.5)*5.5*pow(env,.85)*smoothstep(0.5,0.4,pow(rop.z,2.5));
+            glow += (3.1/(0.1+rop.x*rop.x))*glow_int;
             rop.x = smin(rop.x,center_sph,0.6,h);
             if(rop.x < res.dist)
             {
@@ -155,10 +156,13 @@ HitInfo map(vec3 p, bool refl)
             if(rop.x < res.dist)
             {
                 vec2 tuv = rop.yz*0.1;
+                env = pow(env,0.5);
                 tuv.y += env;
                 vec3 txt = texture(TEXTURE,tuv).xyz;
-                float bump = clamp(dot(txt,txt),0.,1.)*0.1;
-                res.dist = rop.x, res.id = ivec2(4,id), res.uv_transorm = tuv,
+                float bump = clamp(dot(txt,txt),0.,1.)*0.4*(env+0.05);
+                float glow_int = smoothstep(0.04,0.,abs(rop.z*0.8-(1.-env)))*.5*env;
+                glow += (0.1/(0.1+rop.x*rop.x*rop.x))*glow_int;
+                res.dist = rop.x-bump, res.id = ivec2(4,id), res.uv_transorm = tuv,
                 res.uv = rop.yz, 
                 res.pos = p, res.surf = hit_point, 
                 res.env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
@@ -240,7 +244,7 @@ vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
     float light_distance = smoothstep(.1,2., length(sun_pos- hit.pos)*0.2);
     float falloff = .05;
     vec3 ha = hash31(float(hit.id.x)+float(hit.id.y));
-    hit.col  = max(ha*1.2+sun_col,vec3(1));
+    hit.col  = min(ha*1.2+sun_col,vec3(1));
     float light_intensity = clamp(falloff/pow(light_distance,1.8),0,1);
     float fres = clamp(1. - dot(hit.nor, -rd),0.,1.);
     vec3 col = fres*0.2*diff*hit.col*light_intensity;
