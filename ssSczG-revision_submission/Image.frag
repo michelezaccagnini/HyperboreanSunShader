@@ -93,14 +93,15 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     }
 
 
-    /*
+    
     vec2 o = vec2(0.0015,0);
     col += texture(BUF_B,fragCoord/iResolution.xy+o).xyz;
     col += texture(BUF_B,fragCoord/iResolution.xy+o.yx).xyz;
     col += texture(BUF_B,fragCoord/iResolution.xy-o).xyz;
     col += texture(BUF_B,fragCoord/iResolution.xy-o.yx).xyz;
     col /= 4.;
-    */
+    col = pow(col+clamp(glow,0.,1.),vec3(.4545));
+    
     #if 0
     //fragColor = vec4(getSongSection(MIDI) == 2 ? 1 : 0);
     
@@ -110,6 +111,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     #else
     //col = dot(col,col) > 0.01 ? min(vec3(glow),col): col;
     //glow *= dot(col,col) > 0.1 ? 0. : 2.;
-    fragColor = vec4(pow(col+clamp(glow,0.,1.),vec3(.6545)),0.);
+    fragColor = vec4(col,0.);
     #endif
 }

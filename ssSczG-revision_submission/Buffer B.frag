@@ -49,6 +49,11 @@ HitInfo map(vec3 p, bool refl)
     bool drums_on = is_drums_on(song_sect);
     bool bass_on = is_bass_on(song_sect);
     vec3 hit_point = vec3(0);
+    vec3 op = p;
+    op.z += iTime*10.;
+    float b = cos(op.z*.5); ;
+    float pa =  length( cos(op*0.7));//max(length(cos(op*.75+vec3(b,b*.5,cos(p.x)))),abs(p.x)-10.);
+    glow +=1.8/(0.1+pa*pa*5000.);
     //flower
     if(flower_on)
     {
@@ -64,14 +69,19 @@ HitInfo map(vec3 p, bool refl)
             //float joint = length(p-texelFetch(BUF_A,ivec2(0,id+FLOWER_BLOCK.z*3),0).xyz)-0.1;
             //vec3 rop = opU(rope_center,rope_attach);
             //bool is_first = rope_center.x < rope_attach.x; 
-            float c_sphere = length(p-sp_pos)-0.3;
+            float c_sphere = length(p-sp_pos)-0.5;
             hit_point = hit_point;//is_first ? hit_point : hit_point2;
             float h = 0.;
             float d = rop.x;
             rop.x = smin(c_sphere,d,0.7,h);
             float glow_int = smoothstep(0.051,0.,abs(rop.z*0.8-(1.-pow(env,0.5))))*smoothstep(STAR_RAD,0.,length(p));
             glow += (2.5/(0.3+rop.x*rop.x*rop.x))*glow_int;
-            if(c_sphere< d && !refl) glow += smoothstep(0.3,0.2,(0.01/(0.1+rop.x*rop.x))*pow(1.-h,0.5))*0.01;
+            
+            if(c_sphere< d && !refl)
+            {
+                glow += smoothstep(0.3,0.2,(0.01/(0.1+rop.x*rop.x+cos(p.z)*80.))*pow(h,0.5))*0.0005;
+                
+            } 
             if(rop.x < res.dist)
             {
                 //id += is_first ? 0 : 5;
@@ -202,6 +212,8 @@ HitInfo intersect(vec3 ro, vec3 rd, bool refl)
     res.id = ivec2(-1);
     for(int i = 0; i < 80; i++)
     {
+        vec3 hit_point = vec3(0);
+        
         vec3 p = ro + rd*d;
         res = map(p, refl);
         if(d > max_dist || abs(res.dist) < min_dist) break;
@@ -353,7 +365,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     tot /= float(AA);
     glow /= float(AA);
 #endif
-    float g = slide(texture(FEEDBACK,fragCoord/iResolution.xy).w,glow,0.5);
+    float g = slide(texture(FEEDBACK,fragCoord/iResolution.xy).w,glow,0.4*STREAM_SLIDE);
     fragColor= vec4(tot, g);
 }
 

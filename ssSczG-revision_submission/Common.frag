@@ -464,7 +464,7 @@ vec3 rope_flower1(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit
         float w =smoothstep(0.4,0.,abs(l-(1.-pow(env,0.5))))*0.8*smoothstep(0.8,0.6, l);
         //float l = smoothstep(0.2,0.7,lwise.x)+0.01;
         
-        float d = dbox3(c_point, vec3(.01, .08+w*0.3, 0.1*w));
+        float d = dbox3(c_point, vec3(.01, .08+w*0.3, 0.4*w+0.1));
         if(d < dist) 
         {
             hit_point = c_point;
