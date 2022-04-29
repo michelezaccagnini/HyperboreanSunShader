@@ -70,12 +70,14 @@ HitInfo map(vec3 p, bool refl)
             //vec3 rop = opU(rope_center,rope_attach);
             //bool is_first = rope_center.x < rope_attach.x; 
             float c_sphere = length(p-sp_pos)-0.5;
-            hit_point = hit_point;//is_first ? hit_point : hit_point2;
+            hit_point = hit_point;
             float h = 0.;
             float d = rop.x;
-            rop.x = smin(c_sphere,d,0.7,h);
+            rop.x = smin(c_sphere,d,0.3,h);
+            float o_sphere = length(p)-STAR_RAD*0.9;
+            //rop.x = smax(rop.x,o_sphere,0.2);
             float glow_int = smoothstep(0.051,0.,abs(rop.z*0.8-(1.-pow(env,0.5))))*smoothstep(STAR_RAD,0.,length(p));
-            glow += (2.5/(0.3+rop.x*rop.x*rop.x))*glow_int;
+            glow += (.1/(0.1+rop.x*rop.x*rop.x))*glow_int;
             
             if(c_sphere< d && !refl)
             {
@@ -130,17 +132,24 @@ HitInfo map(vec3 p, bool refl)
             float env = texelFetch(BUF_A,ivec2(id,PERHI_ENV_ROW),0).x;
             vec3 displ = perhi_sect_displ(song_sect);
             vec3 sp_pos = displ ;
-            float center_sph = length(p-sp_pos) -0.7;
             vec3 rop  = ropePerhi(p-displ, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A, env, hit_point);
-            //rop.x = min(rop.x,sph); 
+            float c_sphere = length(p-sp_pos)-0.5;
+            hit_point = hit_point;
             float h = 0.;
-            //rop.z = clamp(rop.z,0.2,0.9);
-            float glow_int = smoothstep(0.04,0.,abs(rop.z*0.8-pow(env,0.6)))*pow(rop.z,2.5)*5.5*pow(env,.85)*smoothstep(0.5,0.4,pow(rop.z,2.5));
-            glow += (3.1/(0.1+rop.x*rop.x))*glow_int;
-            rop.x = smin(rop.x,center_sph,0.6,h);
+            float d = rop.x;
+            rop.x = smin(c_sphere,d,0.9,h);
+            float o_sphere = length(p)-STAR_RAD*0.9;
+            rop.x = smax(rop.x,o_sphere,0.5);
+            float glow_int = smoothstep(0.04,0.,abs(rop.z*0.8-pow(env,1.6)))*pow(rop.z,1.5)*5.5*pow(env,.85)*smoothstep(0.5,0.4,pow(rop.z,2.5));
+            glow += (0.2/(0.1+rop.x*rop.x))*glow_int;
+            if(c_sphere< d && !refl)
+            {
+                glow += smoothstep(0.3,0.2,(0.01/(0.1+rop.x*rop.x))*pow(1.-h,0.5))*0.0005;
+                
+            } 
             if(rop.x < res.dist)
             {
-                vec2 tuv = rop.yz*0.1;
+                vec2 tuv = rop.yz*0.14;
                 tuv.y += env;
                 vec3 txt = texture(TEXTURE,tuv).xyz;
                 float bump = clamp(dot(txt,txt),0.,1.)*0.1;
@@ -269,7 +278,7 @@ vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
     col += txt*light_intensity*0.5;
     col += bump*PERHI_COL_CENTER*0.2;
     // color center spheres for FLOWER and PERHI
-    col =  mix(col,sun_col,hit.smin);
+    //col =  mix(col,sun_col,hit.smin);
     if(hit.id.x == 1 && hit.id.y > 4) col *= 0.2;
     return col;
 }
@@ -288,7 +297,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         vec2 uv = (2.0*(fragCoord)-iResolution.xy)/iResolution.y;
 #endif
         vec3 ro = false ? vec3(cos(iTime),0.5,sin(iTime))*10. : texelFetch(BUF_A,RO_COO,0).xyz;
-        vec3 lookat = vec3(0);
+        vec3 lookat = LOOKAT;
         mat3 cam = camera(ro, lookat, 0.);
         vec3 rd = cam * normalize(vec3(uv,1));
         bool refl = false;
@@ -296,7 +305,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         bool is_flo_perhi = any(equal(ivec2(hit.id.x),ivec2(1,3)));
         float rad = STAR_RAD;
         vec2 sph = asphere(ro,rd,rad);
-        if( is_flo_perhi)
+        if( false)
         {
             refl = true;   
             float d=  sph.x, d_refl = sph.y;

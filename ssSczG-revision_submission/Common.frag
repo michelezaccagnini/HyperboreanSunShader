@@ -3,6 +3,7 @@
 #define FPS 30
 const float STREAM_SLIDE = FPS == 60 ? 0.5 : 1.;  
 #define MAX_DIST 100.
+#define LOOKAT vec3(cos(iTime),0,sin(iTime))*2.5
 
 //Flower uniforms
 #define ROPE_POINTS 7
@@ -82,7 +83,7 @@ const int BASS_ENV_ROW = BASS_BLOCK_OFFSET + BASS_BLOCK.y - 1;
 
 
 //outer sphere
-#define STAR_RAD 6.
+#define STAR_RAD 6.5    
 
 #define TAU 6.28318530718
 #define PI 3.14159265359
@@ -135,6 +136,10 @@ vec3 opU(in vec3 a, in vec3 b)
     return a.x < b.x ? a : b; 
 }
 
+float tri(float x)
+{
+    return min(fract(x) * 2., 2. - 2. * fract(x));
+}
 
 vec3 hash31( float n )
 {
@@ -146,6 +151,10 @@ mat2 rotate(float ang)
     return mat2(cos(ang), sin(ang),-sin(ang), cos(ang));
 }
 
+float smax( in float a, in float b, in float s ){
+    float h = clamp( 0.5 + 0.5*(a-b)/s, 0.0, 1.0 );
+    return mix(b, a, h) + h*(1.0-h)*s;
+}
 vec2 to_polar(vec3 U)
 {
    return fract(vec2(
@@ -357,11 +366,11 @@ vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         float l = clamp(pow(lwise.x,0.8),0.,1.);
         float w =smoothstep(0.4,0.,abs(l-pow(env,0.2)))*smoothstep(0.2,0.6,l)*0.5;
         
-        float d = dbox3(c_point, vec3(.1, w*0.4+0.11, w*0.4+0.09));
+        float d = dbox3(c_point, vec3(.1,w*0.4+0.11, w*0.4+0.19));
         if(d < dist) 
         {
             hit_point = c_point;
-            uv = vec2(c_point.z*w+w*0.5,lwise.x);
+            uv = vec2(c_point.z,lwise.x);
         }
         dist =  min(dist,d); 
     }
@@ -523,19 +532,19 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
           z = texelFetch(midi, ivec2(cc.z,chan*HEIGHT_CH_BLOCK+3),0).x,
        dist = texelFetch(midi, ivec2(cc.w,chan*HEIGHT_CH_BLOCK+3),0).x; 
     vec3 tar = vec3(0,0,10);
-    float sli = 0.5;
+    float sli = 0.3;
     if(song_sect < 1)
     {
         float revolutions = 4.;
         float ang = y * TAU * revolutions;
-        sli = 0.1*STREAM_SLIDE;
+        sli = 0.051*STREAM_SLIDE;
         tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
     }
     else if( song_sect == 1 || song_sect == 2)
     {
         float revolutions = 1.;
         float ang = y * TAU * revolutions;
-        sli = 0.1*STREAM_SLIDE;
+        sli = 0.051*STREAM_SLIDE;
         tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
     }
     else if(song_sect == 3)
@@ -960,7 +969,7 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             vec4 data = texelFetch(text, ivec2(id, PERHI_ENV_ROW),0);
             vec3 cur = texelFetch(text,tex_coo,0).xyz;
             vec3 tar = getPosPerhi(id+chan_offset,data, midi);
-            tar.xz += tar.xz*rotate(iTime*2.083)*0.3;
+            tar.xz += tar.xz*rotate(iTime*2.083)*0.8;
             return vec4(slide(tar, cur, 0.5),0);
         } 
         else  return iFrame < 10 ? vec4(1) :  pix_stream4(tex_coo,text,0.8*STREAM_SLIDE);

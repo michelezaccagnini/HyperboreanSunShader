@@ -102,10 +102,10 @@
 					)),
 				),
 				(
-					asset: Misc(BufferC),
+					asset: Texture(Organic2),
 					sampler: Custom((
 						filter: linear,
-						wrap: clamp,
+						wrap: repeat,
 						vflip: true,
 					)),
 				),
