@@ -75,9 +75,9 @@ HitInfo map(vec3 p, bool refl)
             float d = rop.x;
             rop.x = smin(c_sphere,d,0.3,h);
             float o_sphere = length(p)-STAR_RAD*0.9;
-            //rop.x = smax(rop.x,o_sphere,0.2);
-            float glow_int = smoothstep(0.051,0.,abs(rop.z*0.8-(1.-pow(env,0.5))))*smoothstep(STAR_RAD,0.,length(p));
-            glow += (.1/(0.1+rop.x*rop.x*rop.x))*glow_int;
+            rop.x = smax(rop.x,o_sphere,0.3);
+            float glow_int = smoothstep(0.051,0.,abs(rop.z*1.-(1.-pow(env,.75))))*smoothstep(STAR_RAD,STAR_RAD/2.,length(p));
+            glow += (.01/(0.1+rop.x*rop.x*rop.x))*glow_int;
             
             if(c_sphere< d && !refl)
             {
@@ -133,15 +133,15 @@ HitInfo map(vec3 p, bool refl)
             vec3 displ = perhi_sect_displ(song_sect);
             vec3 sp_pos = displ ;
             vec3 rop  = ropePerhi(p-displ, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A, env, hit_point);
-            float c_sphere = length(p-sp_pos)-0.5;
+            float c_sphere = length(p-sp_pos)-.7;
             hit_point = hit_point;
             float h = 0.;
             float d = rop.x;
             rop.x = smin(c_sphere,d,0.9,h);
-            float o_sphere = length(p)-STAR_RAD*0.9;
+            float o_sphere = length(p)-STAR_RAD*2.9;
             rop.x = smax(rop.x,o_sphere,0.5);
-            float glow_int = smoothstep(0.04,0.,abs(rop.z*0.8-pow(env,1.6)))*pow(rop.z,1.5)*5.5*pow(env,.85)*smoothstep(0.5,0.4,pow(rop.z,2.5));
-            glow += (0.2/(0.1+rop.x*rop.x))*glow_int;
+            float glow_int = smoothstep(0.025,0.02,abs(rop.z*0.2-pow(env,0.6)))*pow(rop.z,1.5)*1.;//*smoothstep(0.5,0.4,pow(rop.z,2.5));
+            glow += (0.1/(0.1+rop.x*rop.x))*glow_int;
             if(c_sphere< d && !refl)
             {
                 glow += smoothstep(0.3,0.2,(0.01/(0.1+rop.x*rop.x))*pow(1.-h,0.5))*0.0005;
@@ -170,9 +170,15 @@ HitInfo map(vec3 p, bool refl)
         {
             float env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
             vec3 rop  = ropeDrums(p, id+block,BUF_A, env, hit_point);
-            
-            //rop.x = min(rop.x,sph);
-            if(rop.x < res.dist)
+            //float d = rop.x;
+            //float h = 0.;
+            //vec3 displ = perhi_sect_displ(song_sect);
+            //vec3 sp_pos = displ ;
+            //float c_sphere = length(p-sp_pos)-STAR_RAD*0.8;
+            //rop.x = smin(c_sphere,d,0.5,h);
+            //float o_sphere = length(p)-STAR_RAD*2.9;
+            //rop.x = smax(rop.x,o_sphere,0.5);
+            if(rop.x < res.dist)// && h < 0.99999)
             {
                 vec2 tuv = rop.yz*0.1;
                 env = pow(env,0.5);
@@ -262,11 +268,11 @@ vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
         sun_pos = perhi_sect_displ(song_sect);
         sun_col = PERHI_COL_CENTER;
     }
-    float light_distance = smoothstep(.1,2., length(sun_pos- hit.pos)*0.2);
+    float light_distance = smoothstep(1.1,-0.8, length(sun_pos- hit.pos)*0.8);
     float falloff = .05;
     vec3 ha = hash31(float(hit.id.x)+float(hit.id.y));
     hit.col  = min(ha*1.2+sun_col,vec3(1));
-    float light_intensity = clamp(falloff/pow(light_distance,1.8),0,1);
+    float light_intensity = clamp(falloff/pow(light_distance,.8),0,1);
     float fres = clamp(1. - dot(hit.nor, -rd),0.,1.);
     vec3 col = fres*0.2*diff*hit.col*light_intensity;
     float stripe = 0.;
@@ -275,8 +281,8 @@ vec3 calcLight(HitInfo hit, vec3 rd, vec3 lig_pos)
     col *=vec3(stripe *3.+0.8);//diff*pow(hit.env,1.5)*1.+0.1;//max(col, vec3(0));
     vec3 txt = texture(TEXTURE,hit.uv_transorm).xyz;
     float bump = clamp(dot(txt,txt),0.,1.);
-    col += txt*light_intensity*0.5;
-    col += bump*PERHI_COL_CENTER*0.2;
+    col += txt*2.2 *light_intensity*0.5;
+    //col += bump*PERHI_COL_CENTER*0.2;
     // color center spheres for FLOWER and PERHI
     //col =  mix(col,sun_col,hit.smin);
     if(hit.id.x == 1 && hit.id.y > 4) col *= 0.2;
@@ -364,7 +370,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         vec3 sun1 = is_perhi_on(song_sect) ? integrateLightFullView(ro-sun1_pos,rd,0.051,1.)*PERHI_COL_CENTER : vec3(0);
         vec3 sun2_pos = flower_sect_displ(song_sect);
         vec3 sun2 = is_flower_on(song_sect) ?  integrateLightFullView(ro-sun2_pos,rd,0.21,0.5)*FLOWER_COL_CENTER :  vec3(0);
-        //col += sun1+sun2*0.1;
+        col += sun1+sun2*0.1;
         
         col = pow(col,vec3(.6445));
         tot += col;

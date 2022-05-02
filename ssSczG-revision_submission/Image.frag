@@ -82,7 +82,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     if(sph.x < MAX_DIST && sph.x > 0.2)
     {
-        fgl = smoothstep(0.8,2.9,fgl*20.)*0.5;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
+        fgl = smoothstep(0.8,1.9,fgl*40.)*0.5;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
         vec3 norm_front = normalize(ro+rd*sph.x), norm_back = normalize(ro+rd*sph.y);
         // bump mapping
 	    vec3 surf_norm_front = get_bump_norm(norm_front,uv_fr.xy), 

@@ -370,7 +370,7 @@ vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         if(d < dist) 
         {
             hit_point = c_point;
-            uv = vec2(c_point.z,lwise.x);
+            uv = vec2(c_point.z*w+w*0.5,lwise.x);
         }
         dist =  min(dist,d); 
     }
@@ -750,16 +750,16 @@ vec3 getPosFlower(int id, float env, sampler2D midi)
     //data.x :  rhythmic, data.y : velocity, data.z : pitch
     vec3 data = getTrajectory(id, midi);
     //data.x = 1.-data.x;
-    data = pow(data,vec3(1.3));
-    data.y = pow(data.y,0.5);
-    env = smoothstep(0.051,0.3,env);
+    data = pow(data,vec3(2.3));
+    data.y = data.y*0.1+0.25;// pow(data.y,0.5);
+    env = pow(env, 0.5);// smoothstep(0.051,0.3,env);
     //rhythmic position (within bar): how far from the center of space
     //closer to downbeat->closer to center
     //velocity position: longitude (rotating around center)
     //pitch position : latitude
     float longi = data.x*TAU*0.8;
     float lati =  data.y*TAU*0.8;
-    pos = vec3(cos(longi),cos(float(id))+data.y*2.-1.+pow(env,0.5)*1.4-0.2,sin(longi))*4.;//*vec3(data.x,1,data.x)*4.+FULCRUM1;
+    pos = vec3(cos(longi),cos(float(id))+pow(env,0.5)*1.4-0.2,sin(longi+data.z))*3.5;//*vec3(data.x,1,data.x)*4.+FULCRUM1;
     //pos = vec3(cos(data.z*TAU),float(id)/4.*2.-1.,sin(data.z*TAU))*3.;
     //pos = vec3( float(id),data.y*3.,0);
 
@@ -829,7 +829,7 @@ vec3 getPosDrums(int id, float env, sampler2D midi)
     float offs = float(id)/8.;
     float ang = offs*TAU+sect*0.1+data.x*0.1;
     float rad = STAR_RAD;
-    vec3 pos = vec3(rad*cos(ang),rad*sin(ang),-3.+(data.z*0.1));
+    vec3 pos = vec3(rad*cos(ang),rad*sin(ang),-0.+(data.z*0.1));
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
     return pos;
 }
@@ -865,7 +865,7 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             float env = texelFetch(text, ivec2(id, FLOWER_ENV_ROW),0).x;
             return getPosFlower(id,env, midi);
         } 
-        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.6*STREAM_SLIDE);
+        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.9*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
@@ -969,7 +969,9 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             vec4 data = texelFetch(text, ivec2(id, PERHI_ENV_ROW),0);
             vec3 cur = texelFetch(text,tex_coo,0).xyz;
             vec3 tar = getPosPerhi(id+chan_offset,data, midi);
-            tar.xz += tar.xz*rotate(iTime*2.083)*0.8;
+            //add a bit of rotation so that the bezier is always 
+            //moving and is drawn correclty (if still it does not trace correctly)
+            tar.xz += tar.xz*rotate(iTime*2.083)*0.01;
             return vec4(slide(tar, cur, 0.5),0);
         } 
         else  return iFrame < 10 ? vec4(1) :  pix_stream4(tex_coo,text,0.8*STREAM_SLIDE);
@@ -989,7 +991,7 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
     {
         int id = tex_coo.x;
         int chan = id + chan_offset ;
-        float dur = 3., width =4.;
+        float dur = 1.8, width =4.;
         return getEnvelopeSector(id, chan, PERHI_ENV_ROW, dur, width, midi, text);
     } 
 }
@@ -1086,3 +1088,38 @@ vec3 animBassData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
     } 
 }
 
+
+vec3 get_light2(vec3 p, vec3 rd, vec3 norm, float env)
+{
+    vec3 r = reflect(rd,norm);
+    float l = length(p)/ZOOM;
+    float fr = clamp(1. - dot(norm,-rd), 0.,1.);
+    float bodyR = 1.5;
+    float cone = cos(atan(bodyR / l));
+
+    float specshad = 1. - smoothstep(-0.1,0.1, dot(r,normalize(-p)) -cone);
+    float specshad2 = 1. - smoothstep(-0.3,0.3, dot(r,normalize(-p)) -cone);
+
+    //backlight / fake SSS
+    col = diff;//+vec3(1,1,0.4) * pow(env,1.)* 1.1/(10.-exp(hit.x*.01)); 
+    col += BG * mix(vec3(0.2,0.5,1.) /  2., vec3(1.,0.9,0.8).bgr,specshad2 * pow(fr,0.8))*0.8;
+
+    //fake AO from center 
+    col *= vec3(pow(mix(0.5+0.5*dot(norm,normalize(-p)), 1., smoothstep(0.8,0.9,l)), 0.5));
+
+    //slight AO / diffuse bleeding
+    col *= mix(vec3(0.75,1.,0.75), vec3(1), smoothstep(0.5,0.9,l));
+
+    vec3 c = col;
+    //yellow tips
+    col = mix(c.bbb * vec3(0.5,1.,0.5), col *pow(env,1.)*2.1, smoothstep(0.65,1.,l));
+        
+    //envelope illumination
+    //col += vec3(1,1,0.4) *(5.1/(1.-exp(-hit.x))* pow(env,1.)*3.1 * smoothstep(0.1,0.,abs(l-pow(env,1.5))));
+    col += vec3(1,1,0.4) * pow(env,2.)*1.1;
+    //specular highlight
+    col += specshad* 0.9 * smoothstep(0.4,0.7, dot(r, normalize(vec3(1)))) * fr;
+
+    //mist
+    col += vec3(mix(vec3(0.9294, 0.9922, 0.0275), vec3(0), exp(-hit.x /105.)));
+} 
