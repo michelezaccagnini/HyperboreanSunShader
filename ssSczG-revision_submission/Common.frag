@@ -1,9 +1,12 @@
 
 #define TIME_UNIT 0.12 // 120 ms = 125 bpm
-#define FPS 30
+#define FPS 60
 const float STREAM_SLIDE = FPS == 60 ? 0.5 : 1.;  
 #define MAX_DIST 100.
-#define LOOKAT vec3(cos(iTime),0,sin(iTime))*2.5
+#define LOOKAT vec3(cos(iTime),sin(iTime),0)*0.8
+
+#define AA 1
+//#define REDUCE_BOXY
 
 //Flower uniforms
 #define ROPE_POINTS 7
@@ -400,9 +403,9 @@ vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_poi
         vec2 lwise =vec2(t*span+bez_ind*span,t);
         env = pow(env,0.5);
 
-        float w =smoothstep(0.5,0.,abs(lwise.x-env))*0.4*smoothstep(0.7,0.4,lwise.x);//+0.1*smoothstep(0.2,0.4,lwise.x);
+        float w =smoothstep(0.5,0.,abs(lwise.x-env))*0.4*smoothstep(0.9,0.1,lwise.x);//+0.1*smoothstep(0.2,0.4,lwise.x);
         
-        float d = dbox3(c_point, vec3(.1, .8*w, w*.43));
+        float d = dbox3(c_point, vec3(.1, w, w));
         if(d < dist) 
         {
             hit_point = c_point;
@@ -436,8 +439,8 @@ vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         float bez_ind = floor(float(i)/2.);
         vec2 lwise =vec2(t*span+bez_ind*span,t);
         float l = pow(lwise.x,1.7);
-        float w =smoothstep(0.4,0.,abs(l-(1.-pow(env,0.5))))*0.1*smoothstep(0.7,0.6, l)*0.02+0.15;
-        float d = dbox3(c_point, vec3(.1, w, 0.01*(cos(l*108.55*env+10.55+float(i)*23.055)+1.*0.5))+0.1);
+        float w =smoothstep(0.4,0.,abs(l-pow(env,0.5)))*0.2*smoothstep(0.85,0.5, l)+0.051;
+        float d = dbox3(c_point, vec3(.1, w, w));
         if(d < dist) 
         {
             hit_point = c_point;
@@ -526,6 +529,7 @@ vec3 rope_flower2(vec3 p, int rope_id, sampler2D text, inout vec3 hit_point)
 //==================================================================================================
 vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sampler2D midi)
 {
+    if(iFrame < 10) return vec3(0,0,10);
     vec3  cur = texelFetch(feed,tex_coo,0).xyz;
     float x = texelFetch(midi, ivec2(cc.x,chan*HEIGHT_CH_BLOCK+3),0).x,
           y = texelFetch(midi, ivec2(cc.y,chan*HEIGHT_CH_BLOCK+3),0).x,
@@ -533,41 +537,10 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
        dist = texelFetch(midi, ivec2(cc.w,chan*HEIGHT_CH_BLOCK+3),0).x; 
     vec3 tar = vec3(0,0,10);
     float sli = 0.3;
-    if(song_sect < 1)
-    {
-        float revolutions = 4.;
-        float ang = y * TAU * revolutions;
-        sli = 0.051*STREAM_SLIDE;
-        tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
-    }
-    else if( song_sect == 1 || song_sect == 2)
-    {
-        float revolutions = 1.;
-        float ang = y * TAU * revolutions;
-        sli = 0.051*STREAM_SLIDE;
-        tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
-    }
-    else if(song_sect == 3)
-    {
-        float revolutions = 1.;
-        float ang = y * TAU * revolutions;
-        sli = 0.05*STREAM_SLIDE;
-        tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
-    }
-    else if(song_sect == 4)
-    {
-        float revolutions = 1.;
-        float ang = y * TAU * revolutions;
-        sli = 0.05*STREAM_SLIDE;
-        tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
-    }
-    else if(song_sect > 4 )
-    {
-        float revolutions = 1.;
-        float ang = y * TAU * revolutions;
-        sli = 0.05*STREAM_SLIDE;
-        tar = vec3(cos(ang),z, sin(ang))*dist*RO_DIST_MULT;
-    }
+    float revolutions = 4.;
+    float ang = y * TAU * revolutions;
+    sli = 0.051*STREAM_SLIDE;
+    tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
     return slide(cur,tar, sli);
 }
 
@@ -1087,12 +1060,35 @@ vec3 animBassData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         return getEnvelopeBass(tex_coo, pitch, chan, 5., midi, text);
     } 
 }
-
-
-vec3 get_light2(vec3 p, vec3 rd, vec3 norm, float env)
+struct HitInfo
 {
+    float dist;
+    //id is element id  and sub element id (e.g. rope id)
+    ivec2 id;
+    //returns rope/sphere connection interpolation index
+    float smin;
+    vec3 pos;
+    vec3 surf;
+    vec3 nor;
+    vec2 uv;
+    vec2 uv_transorm;
+    vec3 col;
+    float env;
+};
+
+vec3 plane(vec3 ro, vec3 rd, vec3 p, vec3 norm)
+{
+    float t = max(0., dot(p-ro,norm)/dot(rd,norm));
+    return ro+rd*t;
+}
+
+
+vec3 get_light2(HitInfo hit, vec3 rd, vec3 l_pos, vec3 l_col, sampler2D TXT)
+{
+    vec3 norm= hit.nor, p= hit.pos;
+    vec3 diff = (max(0.,dot(l_pos,norm))*0.5+0.5)*0.2*l_col;
     vec3 r = reflect(rd,norm);
-    float l = length(p)/ZOOM;
+    float l = length(p);
     float fr = clamp(1. - dot(norm,-rd), 0.,1.);
     float bodyR = 1.5;
     float cone = cos(atan(bodyR / l));
@@ -1101,8 +1097,8 @@ vec3 get_light2(vec3 p, vec3 rd, vec3 norm, float env)
     float specshad2 = 1. - smoothstep(-0.3,0.3, dot(r,normalize(-p)) -cone);
 
     //backlight / fake SSS
-    col = diff;//+vec3(1,1,0.4) * pow(env,1.)* 1.1/(10.-exp(hit.x*.01)); 
-    col += BG * mix(vec3(0.2,0.5,1.) /  2., vec3(1.,0.9,0.8).bgr,specshad2 * pow(fr,0.8))*0.8;
+    vec3 col = diff;//+vec3(1,1,0.4) * pow(env,1.)* 1.1/(10.-exp(hit.x*.01)); 
+    col += l_col * mix(vec3(0.2,0.5,1.) /  2., vec3(1.,0.9,0.8).bgr,specshad2 * pow(fr,0.8))*0.8;
 
     //fake AO from center 
     col *= vec3(pow(mix(0.5+0.5*dot(norm,normalize(-p)), 1., smoothstep(0.8,0.9,l)), 0.5));
@@ -1112,14 +1108,22 @@ vec3 get_light2(vec3 p, vec3 rd, vec3 norm, float env)
 
     vec3 c = col;
     //yellow tips
-    col = mix(c.bbb * vec3(0.5,1.,0.5), col *pow(env,1.)*2.1, smoothstep(0.65,1.,l));
+    col = mix(c.bbb * vec3(0.5,1.,0.5), col *pow(hit.env,1.)*0.1, smoothstep(0.65,1.,l));
         
     //envelope illumination
     //col += vec3(1,1,0.4) *(5.1/(1.-exp(-hit.x))* pow(env,1.)*3.1 * smoothstep(0.1,0.,abs(l-pow(env,1.5))));
-    col += vec3(1,1,0.4) * pow(env,2.)*1.1;
+    col += vec3(1,1,0.4) * pow(hit.env,2.)*0.1;
     //specular highlight
     col += specshad* 0.9 * smoothstep(0.4,0.7, dot(r, normalize(vec3(1)))) * fr;
 
+    if(hit.id.x == 3) hit.env = 1.- hit.env;
+    float stripe = pow(smoothstep(0.1,0.0,abs(pow(hit.env,0.5)-(1.-hit.uv.y))),0.5);
+    //col *=vec3(stripe *0.5+0.8);//diff*pow(hit.env,1.5)*1.+0.1;//max(col, vec3(0));
+    vec3 txt = texture(TXT,hit.uv_transorm).xyz;
+    float bump = clamp(dot(txt,txt),0.,1.);
+    col = mix(col,txt,0.4);//*2.2 *light_intensity*0.5;
     //mist
-    col += vec3(mix(vec3(0.9294, 0.9922, 0.0275), vec3(0), exp(-hit.x /105.)));
+    col += vec3(mix(vec3(0.0275, 0.4784, 0.9922), vec3(0), exp(-hit.dist /1005.)));
+
+    return col  ;
 } 

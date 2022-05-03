@@ -82,7 +82,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     
     if(sph.x < MAX_DIST && sph.x > 0.2)
     {
-        fgl = smoothstep(0.8,1.9,fgl*40.)*0.5;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
+        //glow*= 0.1;
+        fgl = smoothstep(1.2,1.9,fgl*20.)*0.2;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
         vec3 norm_front = normalize(ro+rd*sph.x), norm_back = normalize(ro+rd*sph.y);
         // bump mapping
 	    vec3 surf_norm_front = get_bump_norm(norm_front,uv_fr.xy), 
@@ -109,7 +110,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     #if 0
     //fragColor = vec4(getSongSection(MIDI) == 2 ? 1 : 0);
     
-    fragColor = false ? texelFetch(BUF_C,ivec2(fragCoord*vec2(1)),0) : 
+    fragColor = true ?  abs(texelFetch(BUF_A,RO_COO,0).w)> 0.1 ? vec4(0) : vec4(1): 
                     texelFetch(BUF_A,ivec2(fragCoord*vec2(0.03,0.251)),0).xxxx  ;
     
     #else
