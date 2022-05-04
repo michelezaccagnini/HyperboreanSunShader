@@ -46,16 +46,7 @@ vec3 get_bump_norm(vec3 n, vec2 uv)
 	return normalize(mattanspace * norm);
 }
 
-vec3 blinn_phong(vec3 p, vec3 rd, vec3 light, vec3 norm)
-{
-    vec3 col_ambient = vec3(0.1);
-    vec3 col_diffuse =vec3(0.9373, 0.9373, 0.1647);
-    vec3 col_specular = vec3(0.1,0.2,0.85);
-    return  col_ambient + 
-            col_diffuse * max(dot(normalize(light-p),norm),0.)+ 
-            col_specular * pow(max(dot(reflect(normalize(light-p),norm),rd),0.),2.);
 
-}
 
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
@@ -83,15 +74,16 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     if(sph.x < MAX_DIST && sph.x > 0.2)
     {
         //glow*= 0.1;
-        fgl = smoothstep(1.2,1.9,fgl*20.)*0.2;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
+        fgl = smoothstep(2.2,3.9,fgl*30.)*1.5;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
         vec3 norm_front = normalize(ro+rd*sph.x), norm_back = normalize(ro+rd*sph.y);
         // bump mapping
 	    vec3 surf_norm_front = get_bump_norm(norm_front,uv_fr.xy), 
              surf_norm_back = get_bump_norm(norm_back , uv_bk.xy);
         
-        col = max(blinn_phong(ro+rd*front, rd, vec3(0,1,0),surf_norm_front)*fgl,col);
-        col = max(blinn_phong(ro+rd*back , rd, vec3(0,1,0),surf_norm_back )*fgl,col);
-        col += (txf+txb*0.5)*fgl;
+        col = max(blinn_phong(ro+rd*front, rd, vec3(0,1,0),surf_norm_front, SunCol)*fgl,col);
+        col = max(blinn_phong(ro+rd*back , rd, vec3(0,1,0),surf_norm_back, SunCol )*fgl,col);
+        col += (txf+txb*0.5)*fgl*SunCol;
+        //col = vec3(glow);
         //col = nfr;
         //col = vec3(sph_uv1.xxx);
     }
