@@ -228,7 +228,7 @@ HitInfo map(vec3 p, bool refl)
             }
         }
     }
-    if(drums_on)
+    if(false)//drums_on)
     {
         vec3 hit_point = vec3(0);
         int block = DRUMS_BLOCK_OFFSET+DRUMS_BLOCK.z;
@@ -244,13 +244,15 @@ HitInfo map(vec3 p, bool refl)
             //rop.x = smin(c_sphere,d,0.5,h);
             //float o_sphere = length(p)-STAR_RAD*2.9;
             //rop.x = smax(rop.x,o_sphere,0.5);
+            float glow_int = smoothstep(0.025,0.02,abs(rop.z*0.2-pow(env,0.6)))*pow(rop.z,1.5)*1.;//*smoothstep(0.5,0.4,pow(rop.z,2.5));
+            glow += (0.1/(0.1+rop.x*rop.x))*glow_int;
             if(rop.x < res.dist)// && h < 0.99999)
             {
                 vec2 tuv = rop.yz*0.1;
                 env = pow(env,0.5);
                 tuv.y += env;
                 vec3 txt = texture(TEXTURE,tuv).xyz;
-                float bump = clamp(dot(txt,txt),0.,1.)*0.4*(env+0.05);
+                float bump = clamp(dot(txt,txt),0.,1.)*0.1*(env+0.05);
                 float glow_int = smoothstep(0.04,0.,abs(rop.z*0.8-pow(env,2.)))*.5*env;
                 glow += (0.1/(0.1+rop.x*rop.x*rop.x))*glow_int;
                 res.dist = rop.x-bump, res.id = ivec2(4,id), res.uv_transorm = tuv,

@@ -347,9 +347,6 @@ float sdCappedCylinder( vec3 p, float h, float r )
   return min(max(d.x,d.y),0.0) + length(max(d,0.0));
 }
 
-
-
-
 float smin( float a, float b, float k , inout float h ) 
 {
     h = clamp( 0.5+0.5*(b-a)/k, 0., 1. );
@@ -454,10 +451,10 @@ vec3 ropeDrums(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         float bez_ind = floor(float(i)/2.);
         vec2 lwise =vec2(t*span+bez_ind*span,t);
         float l = pow(lwise.x,1.7);
-        float w =smoothstep(0.4,0.,abs(l-pow(env,0.5)))*0.2*smoothstep(0.85,0.5, l)+0.051;
-        //float d = dbox3(c_point, vec3(.1, w, w));
-         float d = sdCappedCylinder(c_point,w,w);
-         d = max(d,length(c_point)-w*0.9);
+        float w = smoothstep(0.4,0.,abs(l-pow(env,0.5)))*0.2+smoothstep(-0.3,0.95, l)*1.4*0.1+0.01;
+        //float d = dbox3(c_point, vec3(.1, w, w*0.5));
+        float d = sdCappedCylinder(c_point,w,w*0.5);
+         d = max(d,length(c_point)-w*0.4);
         if(d < dist) 
         {
             hit_point = c_point;
@@ -527,8 +524,13 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
     float sli = 0.3;
     float revolutions = 4.;
     float ang = y * TAU * revolutions;
+    float[8] drums;
+    for(int i = 0; i < 8; i++)
+    {
+        drums[i] =pow(texelFetch(feed,ivec2(i,DRUMS_ENV_ROW),0).x*1.,.5)*1.;
+    }
     sli = 0.051*STREAM_SLIDE;
-    tar = vec3(cos(ang),z,sin(ang))*dist*RO_DIST_MULT;
+    tar = vec3(cos(-ang+drums[7]+drums[5]+drums[3]),z+drums[6]+drums[2],sin(ang-drums[0]-drums[4]))*dist*RO_DIST_MULT;
     return slide(cur,tar, sli);
 }
 
@@ -570,7 +572,7 @@ int get_time_sector(float time, float width)
     return time_section;
 }
 
-vec3 getEnvelope(int id, int chan, int row, float dur, sampler2D midi, sampler2D feedb)
+vec3 getEnvelope(int id, int chan, int row, float dur, float sli, sampler2D midi, sampler2D feedb)
 {
         int pitch = int(getCCval(19,chan,midi)*127.+0.01) ;
         vec4  prev_data = iFrame < 10 ? vec4(0) : texelFetch(feedb,ivec2(id,row),0);
@@ -580,19 +582,19 @@ vec3 getEnvelope(int id, int chan, int row, float dur, sampler2D midi, sampler2D
         float vel = vel_note_on(midi, chan, pitch, on);
         float is_on = on ? 1. : 0.;
         bool trigger = on && was_on < 0.5;
-        float env = prev_env;
+        float env = 0.;
         if(trigger) 
         {
             env = vel;
         }
         else 
         {
-            env = slide(env, 0., 1./dur); 
+            env = slide(prev_env, 0., 1./dur); 
         }
-        return vec3(env, is_on, pitch);
+        return vec3(slide(prev_env,env,sli), is_on, pitch);
 }
 
-vec4 getEnvelopeSector(int id, int chan, int row, float dur, float width, sampler2D midi, sampler2D feedb)
+vec4 getEnvelopeSector(int id, int chan, int row, float dur, float sli, float width, sampler2D midi, sampler2D feedb)
 {
         int pitch = int(getCCval(19,chan,midi)*127.+0.01) ;
         vec4  prev_data = iFrame < 10 ? vec4(0) : texelFetch(feedb,ivec2(id,row),0);
@@ -603,7 +605,7 @@ vec4 getEnvelopeSector(int id, int chan, int row, float dur, float width, sample
         float vel = vel_note_on(midi, chan, pitch, on);
         float is_on = on ? 1. : 0.;
         bool trigger = on && was_on < 0.5;
-        float env = prev_env;
+        float env = 0.;
         if(trigger) 
         {
             env = vel;
@@ -611,33 +613,33 @@ vec4 getEnvelopeSector(int id, int chan, int row, float dur, float width, sample
         }
         else 
         {
-            env = slide(env, 0., 1./dur); 
+            env = slide(prev_env, 0., 1./dur); 
         }
-        return vec4(env, is_on, pitch, sector);
+        return vec4(slide(prev_env,env,sli), is_on, pitch, sector);
 }
 
-vec3 getEnvelopeDrums(ivec2 tex_coo, int pitch1, int pitch2, int chan, float dur, sampler2D midi, sampler2D feedb)
+vec3 getEnvelopeDrums(ivec2 tex_coo, int pitch1, int pitch2, int chan, float dur, float sli, sampler2D midi, sampler2D feedb)
 {
         vec4  prev_data = iFrame < 10 ? vec4(0) : texelFetch(feedb,tex_coo,0);
-        float prev_env  = prev_data.x, 
-                was_on  = prev_data.y;
+        float prev_env = prev_data.x, 
+              was_on   = prev_data.y;
         bool on = false;
         float vel = vel_note_on_drums(midi, chan, pitch1, pitch2, on);
         float is_on = on ? 1. : 0.;
         bool trigger = on && was_on < 0.5;
-        float env = prev_env;
+        float env =0.;
         if(trigger) 
         {
             env = vel;
         }
         else 
         {
-            env = slide(env, 0., 1./dur); 
+            env = slide(prev_env, 0., 1./dur); 
         }
-        return vec3(env, is_on, pitch1);
+        return vec3(slide(prev_env,env,sli), is_on, pitch1);
 }
 
-vec3 getEnvelopeBass(ivec2 tex_coo, int pitch, int chan, float dur, sampler2D midi, sampler2D feedb)
+vec3 getEnvelopeBass(ivec2 tex_coo, int pitch, int chan, float dur, float sli, sampler2D midi, sampler2D feedb)
 {
         vec4  prev_data = iFrame < 10 ? vec4(0) : texelFetch(feedb,tex_coo,0);
         float prev_env  = prev_data.x, 
@@ -646,16 +648,16 @@ vec3 getEnvelopeBass(ivec2 tex_coo, int pitch, int chan, float dur, sampler2D mi
         float vel = vel_note_on(midi, chan, pitch, on);
         float is_on = on ? 1. : 0.;
         bool trigger = on && was_on < 0.5;
-        float env = prev_env;
+        float env = 0.;
         if(trigger) 
         {
             env = vel;
         }
         else 
         {
-            env = slide(env, 0., 1./dur); 
+            env = slide(prev_env, 0., 1./dur); 
         }
-        return vec3(env, is_on, pitch);
+        return vec3(slide(prev_env,env,sli), is_on, pitch);
 }
 
 int getSongSection(sampler2D midi)
@@ -739,18 +741,19 @@ vec3 getPosPong(int id, float env, sampler2D midi)
     //data.x :  rhythmic, data.y : velocity, data.z : pitch
     vec3 data = getTrajectory(id, midi);
     //data.x = 1.-data.x;
-    data = pow(data,vec3(0.3));
+    //data = pow(data,vec3(0.5));
     //data.y = pow(data.y,0.5);
     env = smoothstep(0.051,0.6,env);
     float longi = data.x*TAU*0.1;
     float lati =  data.y*TAU*0.8;
     float offs = float(id-8);
-    pos = vec3(offs*20.+data.x*0.5,0,offs*1.);
+    pos = vec3(data.x*0.2,0,offs+data.x*0.);
     pos.xz *= 0.25;
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
-    vec3 spherical_pos = to_cartesian(pos.xz)*(STAR_RAD-data.z*0.2); 
+    vec3 spherical_pos = to_cartesian(pos.xz)*(STAR_RAD*1.-env*2.8+0.5); 
     //spherical_pos.y -= env*1.;
-    //spherical_pos.xz *= rotate(RHO*1.5);
+    spherical_pos.xz *= rotate(iTime);
+    spherical_pos.zy *= rotate(iTime+0.2);
 
     return false ? pos : spherical_pos;
 }
@@ -784,13 +787,14 @@ vec3 getPosDrums(int id, float env, sampler2D midi)
     float sect = env > 0.1 ? (get_time_sector(iTime,drums_time_width)+1.)/(drums_time_width+1.) : 0.;
     vec3 data = getTrajectoryDrums(id,DRUMS_CHAN,midi)*1.;
    //data.x = 1.-data.x;
-    data = pow(data,vec3(0.5));
+    //data = pow(data,vec3(0.5));
     //data.y = pow(data.y,0.5);
     env = smoothstep(0.051,0.3,env);
     float offs = float(id)/8.;
-    float ang = offs*TAU+sect*0.1+data.x*0.1;
+    float ang = offs*TAU+sect*0.+data.x*0.1+iTime*0.12;
     float rad = STAR_RAD;
-    vec3 pos = vec3(rad*cos(ang),rad*sin(ang),-0.+(data.z*0.1));
+    vec3 pos = vec3(cos(ang+offs),sin(ang+0.5),cos(ang))*(STAR_RAD-env*0.8);
+    pos.xz *=rotate(iTime*0.12);
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
     return pos;
 }
@@ -864,7 +868,7 @@ vec3 animFlowerData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
     {
         int id = tex_coo.x;
         int chan = id + chan_offset;
-        return getEnvelope(id, chan, FLOWER_ENV_ROW, 6., midi, text);
+        return getEnvelope(id, chan, FLOWER_ENV_ROW, 6., 0.9, midi, text);
     }
 }
 
@@ -907,7 +911,7 @@ vec3 animPongData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
     {
         int id = tex_coo.x;
         int chan = id + chan_offset;
-        return getEnvelope(id, chan, PONG_ENV_ROW, 3., midi, text);
+        return getEnvelope(id, chan, PONG_ENV_ROW, 3., 0.5, midi, text);
     } 
 
 }
@@ -954,7 +958,7 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         int id = tex_coo.x;
         int chan = id + chan_offset ;
         float dur = 1.8, width =4.;
-        return getEnvelopeSector(id, chan, PERHI_ENV_ROW, dur, width, midi, text);
+        return getEnvelopeSector(id, chan, PERHI_ENV_ROW, dur, 0.5, width, midi, text);
     } 
 }
 
@@ -1002,7 +1006,7 @@ vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         int pitch1 = tex_coo.x + DRUMS_PITCH_OFFSET;
         int pitch2 = (NUM_DRUMS- tex_coo.x) + DRUMS_PITCH_OFFSET;
         int chan = DRUMS_CHAN ;
-        return getEnvelopeDrums(tex_coo, pitch1, pitch2-1, chan, 5., midi, text);
+        return getEnvelopeDrums(tex_coo, pitch1, pitch2-1, chan, 5., 0.6, midi, text);
     } 
 }
 
@@ -1046,7 +1050,7 @@ vec3 animBassData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         
         int pitch = tex_coo.x + BASS_PITCH_OFFSET;
         int chan = BASS_CHAN ;
-        return getEnvelopeBass(tex_coo, pitch, chan, 5., midi, text);
+        return getEnvelopeBass(tex_coo, pitch, chan, 5., 0.5, midi, text);
     } 
 }
 struct HitInfo
