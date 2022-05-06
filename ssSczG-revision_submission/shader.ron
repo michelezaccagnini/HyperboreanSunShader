@@ -83,10 +83,40 @@
 				None,
 			],
 		),
+		BufferC: (
+			inputs: [
+				(
+					asset: Misc(BufferC),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				(
+					asset: Misc(BufferA),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				(
+					asset: Music(XTrackTure),
+					sampler: Custom((
+						filter: linear,
+						wrap: clamp,
+						vflip: true,
+					)),
+				),
+				None,
+				None,
+			],
+		),
 		Image: (
 			inputs: [
 				(
-					asset: Misc(BufferA),
+					asset: Misc(BufferC),
 					sampler: Custom((
 						filter: linear,
 						wrap: clamp,
@@ -110,7 +140,7 @@
 					)),
 				),
 				(
-					asset: Music(XTrackTure),
+					asset: Misc(BufferA),
 					sampler: Custom((
 						filter: linear,
 						wrap: clamp,

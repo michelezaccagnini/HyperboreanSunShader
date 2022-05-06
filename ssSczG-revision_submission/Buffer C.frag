@@ -17,18 +17,23 @@ vec3 drawTrails(vec3 ro, vec3 rd, int num_trails, int tex_coo, int env_row, samp
     
 }
 
-vec3 drawDots(vec2 uv, int num_trails, int tex_coo, int env_row, sampler2D text)
+vec4 drawDrums(vec3 ro, vec3 rd)
 {
-    vec3 res = vec3(0);
-    for(int id = 0; id < num_trails; id++)
+    float glow;
+    vec3 col; 
+    vec3 hit_point = vec3(0);
+    int block = DRUMS_BLOCK_OFFSET+DRUMS_BLOCK.z;
+    for(int id = 0; id < 8; id++)
     {
-        vec2 pos = texelFetch(text,ivec2(0,tex_coo+id),0).xy;
-        float env = pow(texelFetch(text,ivec2(id, env_row),0).x,1.);
-        float l = smoothstep(0.08,0.07,length(uv-pos));
-        res += max(l*vec3(1)*env, vec3(0));
+        float env = pow(tri(texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x),3.) ;
+        vec3 p  = texelFetch(BUF_A,ivec2(0,id+block),0).xyz;
+        
+        //pp.xy *=1.;
+        glow += integrateLightFullView(ro-p,rd,5.1*env,0.1);// (100.8*pow(env,0.5))/(0.1+pa*pa*50.);
+        vec3 ha = hash31(float(id));
+        col += glow*ha;
     }
-    return  res;
-    
+    return vec4(col,glow);
 }
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
@@ -40,10 +45,12 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 lookat = vec3(0);
     mat3 cam = camera(ro, lookat, 0.);
     vec3 rd = cam * normalize(vec3(uv,1));
-    vec3 lig = drawDots(uv2,8, PERHI_BLOCK.w, PERHI_ENV_ROW, BUF_A);
-    vec3 feedb = texture(FEEDBACK,fragCoord/iResolution.xy).xyz;
-    vec3 col = lig +feedb*0.1;
-    fragColor.xyz = col;
+    int song_sect = getSongSection(MIDI);
+    bool drums_on = is_drums_on(song_sect);
+    vec4 dru = drums_on ? drawDrums(ro,rd) : vec4(0);
+    vec4 feedb = texture(FEEDBACK,fragCoord/iResolution.xy);
+    vec4 col = dru +feedb*0.5;
+    fragColor = col;
     
 
 }

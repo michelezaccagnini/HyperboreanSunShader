@@ -1,7 +1,7 @@
 #define BUF_B iChannel1
-#define BUF_A iChannel0
+#define BUF_C iChannel0
 #define ORGA  iChannel2
-#define MIDI iChannel3
+#define BUF_A iChannel3
 #define BUMPFACTOR 0.01
 
 #define ORGA_UV_SCALE 0.25+tri(iTime*0.1)*0.25
@@ -70,11 +70,12 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 uv_fr = get_uv(ro+rd*front), uv_bk = get_uv(ro+rd*back);
     vec3 txf = texture(ORGA,uv_fr.xy).xyz*1.0*uv_fr.z;
     vec3 txb = texture(ORGA,uv_bk.xy).xyz*1.0*uv_bk.z;
-    
+    vec4 dru = texture(BUF_C,fragCoord/iResolution.xy);
+    fgl -= dru.w;
     if(sph.x < MAX_DIST && sph.x > 0.2)
     {
         //glow*= 0.1;
-        fgl = smoothstep(2.2,3.9,fgl*30.)*1.5;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
+        fgl = smoothstep(2.2,3.9,fgl*30.)*0.5;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
         vec3 norm_front = normalize(ro+rd*sph.x), norm_back = normalize(ro+rd*sph.y);
         // bump mapping
 	    vec3 surf_norm_front = get_bump_norm(norm_front,uv_fr.xy), 
@@ -82,7 +83,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         
         col = max(blinn_phong(ro+rd*front, rd, vec3(0,1,0),surf_norm_front, SunCol)*fgl,col);
         col = max(blinn_phong(ro+rd*back , rd, vec3(0,1,0),surf_norm_back, SunCol )*fgl,col);
-        col += (txf+txb*0.5)*fgl*SunCol;
+        col += (txf+txb*0.5)*(fgl+dru.w)*SunCol;
         //col = vec3(glow);
         //col = nfr;
         //col = vec3(sph_uv1.xxx);
@@ -102,12 +103,12 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     #if 0
     //fragColor = vec4(getSongSection(MIDI) == 2 ? 1 : 0);
     
-    fragColor = true ?  abs(texelFetch(BUF_A,RO_COO,0).w)> 0.1 ? vec4(0) : vec4(1): 
-                    texelFetch(BUF_A,ivec2(fragCoord*vec2(0.03,0.251)),0).xxxx  ;
+    fragColor = true ?  texelFetch(BUF_C,ivec2(fragCoord),0) : vec4(1);
     
     #else
+    
     //col = dot(col,col) > 0.01 ? min(vec3(glow),col): col;
     //glow *= dot(col,col) > 0.1 ? 0. : 2.;
-    fragColor = vec4(col,0.);
+    fragColor = vec4(col+dru.xyz,0.);
     #endif
 }

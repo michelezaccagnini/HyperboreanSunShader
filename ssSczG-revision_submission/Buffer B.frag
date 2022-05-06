@@ -115,10 +115,10 @@ HitInfo map(vec3 p, bool refl)
     bool drums_on = is_drums_on(song_sect);
     bool bass_on = is_bass_on(song_sect);
     vec3 hit_point = vec3(0);
+    //moving star dust
     vec3 op = p;
-    op.z += iTime*10.;
-    float b = cos(op.z*.2); ;
-    float pa =  length( cos(op*1.7));//max(length(cos(op*.75+vec3(b,b*.5,cos(p.x)))),abs(p.x)-10.);
+    op.z += iTime*ASTEROID_SPEED;
+    float pa =  length( cos(op*1.7));
     glow +=1.8/(0.1+pa*pa*500.);
     //flower
     if(flower_on)
@@ -235,33 +235,12 @@ HitInfo map(vec3 p, bool refl)
         for(int id = 0; id < 8; id++)
         {
             float env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
-            vec3 rop  = ropeDrums(p, id+block,BUF_A, env, hit_point);
-            //float d = rop.x;
-            //float h = 0.;
-            //vec3 displ = perhi_sect_displ(song_sect);
-            //vec3 sp_pos = displ ;
-            //float c_sphere = length(p-sp_pos)-STAR_RAD*0.8;
-            //rop.x = smin(c_sphere,d,0.5,h);
-            //float o_sphere = length(p)-STAR_RAD*2.9;
-            //rop.x = smax(rop.x,o_sphere,0.5);
-            float glow_int = smoothstep(0.025,0.02,abs(rop.z*0.2-pow(env,0.6)))*pow(rop.z,1.5)*1.;//*smoothstep(0.5,0.4,pow(rop.z,2.5));
-            glow += (0.1/(0.1+rop.x*rop.x))*glow_int;
-            if(rop.x < res.dist)// && h < 0.99999)
-            {
-                vec2 tuv = rop.yz*0.1;
-                env = pow(env,0.5);
-                tuv.y += env;
-                vec3 txt = texture(TEXTURE,tuv).xyz;
-                float bump = clamp(dot(txt,txt),0.,1.)*0.1*(env+0.05);
-                float glow_int = smoothstep(0.04,0.,abs(rop.z*0.8-pow(env,2.)))*.5*env;
-                glow += (0.1/(0.1+rop.x*rop.x*rop.x))*glow_int;
-                res.dist = rop.x-bump, res.id = ivec2(4,id), res.uv_transorm = tuv,
-                res.uv = rop.yz, 
-                res.pos = p, res.surf = hit_point, 
-                res.env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
-                res.surf = hit_point, 
-                res.smin = 0.;
-            }
+            vec3 pp  = texelFetch(BUF_A,ivec2(0,id+block),0).xyz;
+            pp.z -= mod(iTime*ASTEROID_SPEED,10.);
+            //pp.xy *=1.;
+            float pa =  length( p-pp);
+            glow += (100.8*pow(env,0.5))/(0.1+pa*pa*50.);
+           
         }
     }
     if(bass_on)

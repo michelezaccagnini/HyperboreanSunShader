@@ -65,6 +65,7 @@ const ivec4 DRUMS_BLOCK = ivec4(DRUMS_POINTS, NUM_DRUMS*2+1, NUM_DRUMS,DRUMS_BLO
 const int DRUMS_ENV_ROW = DRUMS_BLOCK_OFFSET + DRUMS_BLOCK.y-1;
 const int[NUM_DRUMS] DRUMS_TIME_WIDTH = int[NUM_DRUMS](3,4,3,3,4,3,3,3);
 #define DRUMS_LENGTH 0.72
+#define ASTEROID_SPEED 10.
 
 
 //Camera uniforms
@@ -527,7 +528,7 @@ vec3 getRO(ivec2 tex_coo, int song_sect, int chan, ivec4 cc, sampler2D feed, sam
     float[8] drums;
     for(int i = 0; i < 8; i++)
     {
-        drums[i] =pow(texelFetch(feed,ivec2(i,DRUMS_ENV_ROW),0).x*1.,.5)*1.;
+        drums[i] =pow(texelFetch(feed,ivec2(i,DRUMS_ENV_ROW),0).x*.1,.5)*0.1;
     }
     sli = 0.051*STREAM_SLIDE;
     tar = vec3(cos(-ang+drums[7]+drums[5]+drums[3]),z+drums[6]+drums[2],sin(ang-drums[0]-drums[4]))*dist*RO_DIST_MULT;
@@ -791,10 +792,10 @@ vec3 getPosDrums(int id, float env, sampler2D midi)
     //data.y = pow(data.y,0.5);
     env = smoothstep(0.051,0.3,env);
     float offs = float(id)/8.;
-    float ang = offs*TAU+sect*0.+data.x*0.1+iTime*0.12;
+    float ang = offs*TAU;//+sect*0.+data.x*0.1+iTime*0.12;
     float rad = STAR_RAD;
-    vec3 pos = vec3(cos(ang+offs),sin(ang+0.5),cos(ang))*(STAR_RAD-env*0.8);
-    pos.xz *=rotate(iTime*0.12);
+    vec3 pos = vec3(cos(offs),sin(offs),0)*STAR_RAD*(env*0.5+0.2);
+    //pos.xz *=rotate(iTime*0.12);
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
     return pos;
 }
@@ -992,11 +993,13 @@ vec3 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         vec3 pos = texelFetch(text,tex_coo-ivec2(0,block.z),0).xyz;
         float stretch = 1.;
         float x = float(id)/2.*2.-1.;
+        float env = tri(texelFetch(text,ivec2(id,DRUMS_ENV_ROW),0).x );
         //pos = mix(pos,vec3(x,0,0),stretch_ind);
         pos *= 1.+stretch_ind*DRUMS_LENGTH;
         pos.z += stretch_ind*1.2;
         int song_sect  = getSongSection(midi);
         pos.z +=  song_sect > 5 ? flower_sect_displ(song_sect).z : 0.; 
+        pos.z += env*10.-10.;
         //pos.xz *= rotate(RHO);       
         return pos;
     }
