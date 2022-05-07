@@ -103,7 +103,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     #if 0
     //fragColor = vec4(getSongSection(MIDI) == 2 ? 1 : 0);
     
-    fragColor = true ?  texelFetch(BUF_C,ivec2(fragCoord),0) : vec4(1);
+    fragColor = false ?  texelFetch(BUF_A,ivec2(fragCoord*vec2(0.02,0.3)),0).xxxx 
+                    : texelFetch(BUF_C,ivec2(fragCoord*vec2(1)),0).xxxx;
     
     #else
     

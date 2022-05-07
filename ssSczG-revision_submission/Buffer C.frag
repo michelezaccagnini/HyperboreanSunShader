@@ -21,17 +21,26 @@ vec4 drawDrums(vec3 ro, vec3 rd)
 {
     float glow;
     vec3 col; 
+    //vec4 t;
     vec3 hit_point = vec3(0);
-    int block = DRUMS_BLOCK_OFFSET+DRUMS_BLOCK.z;
+    int block = DRUMS_BLOCK_OFFSET;
+    const float[8] fix_amp = float[8](0.2,0.2,0.2,0.2,0.2,0.2,0.2,3.);
     for(int id = 0; id < 8; id++)
-    {
-        float env = pow(tri(texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x),3.) ;
-        vec3 p  = texelFetch(BUF_A,ivec2(0,id+block),0).xyz;
-        
-        //pp.xy *=1.;
-        glow += integrateLightFullView(ro-p,rd,5.1*env,0.1);// (100.8*pow(env,0.5))/(0.1+pa*pa*50.);
-        vec3 ha = hash31(float(id));
-        col += glow*ha;
+    {   
+        //if(id != 7) continue;
+        //id: 0-kick, 2-openhat,3-snare,5-hat2,6-clave2,
+        //I am not using some of the drums hits
+        if(any(equal(ivec3(id),ivec3(0,3,6)))) continue;
+        for(int i = 1; i < 8; i++)
+        {
+            vec4 data = texelFetch(BUF_A,ivec2(i,block+id),0);
+            float env = pow(data.x,0.5)*fix_amp[id] ;
+            vec3 p  = data.yzw;
+            glow += integrateLightFullView(ro-p,rd,1.1*env,0.1);// (100.8*pow(env,0.5))/(0.1+pa*pa*50.);
+            vec3 ha = hash31(float(id));
+            col += glow*ha;
+        }
+       
     }
     return vec4(col,glow);
 }
@@ -49,7 +58,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     bool drums_on = is_drums_on(song_sect);
     vec4 dru = drums_on ? drawDrums(ro,rd) : vec4(0);
     vec4 feedb = texture(FEEDBACK,fragCoord/iResolution.xy);
-    vec4 col = dru +feedb*0.5;
+    vec4 col = dru*0.8 +feedb*0.8;
     fragColor = col;
     
 
