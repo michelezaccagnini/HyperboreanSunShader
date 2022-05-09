@@ -118,8 +118,8 @@ HitInfo map(vec3 p, bool refl)
     //moving star dust
     vec3 op = p;
     op.z += iTime*ASTEROID_SPEED;
-    float pa =  length( cos(op*1.7));
-    glow +=1.8/(0.1+pa*pa*500.);
+    float pa =  length( cos(op*.7)+cos(op.z*1.2)*0.1);
+    glow +=2.8/(0.1+pa*pa*pa*5000.);
     //flower
     if(flower_on)
     {
@@ -199,7 +199,7 @@ HitInfo map(vec3 p, bool refl)
             vec3 displ = perhi_sect_displ(song_sect);
             vec3 sp_pos = displ ;
             vec3 rop  = ropePerhi(p-displ, id+PERHI_BLOCK_OFFSET+PERHI_BLOCK.z,BUF_A, env, hit_point);
-            float c_sphere = length(p-sp_pos)-.7;
+            float c_sphere = length(p-sp_pos)-.2;
             hit_point = hit_point;
             float h = 0.;
             float d = rop.x;
@@ -303,7 +303,7 @@ vec3 normal( in vec3 pos)
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
     vec3 tot = vec3(0);
-    float glo_sli = 0.5;
+    float glo_sli = 0.6;
 #if AA > 1
     for( int m=ZERO; m<AA; m++ )
     for( int n=ZERO; n<AA; n++ )
@@ -331,8 +331,14 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             glo_sli = 0.4;
             //hit.nor = normal(ro + rd*hit.dist);
             hit.nor = normal(ro+rd*hit.dist);
-            //col = calcLight(hit,rd,lig_pos);    
-            col = get_light2(hit, rd, l, FLOWER_COL_CENTER, TEXTURE);
+            //col = calcLight(hit,rd,lig_pos);
+            if(hit.id.x == 2)
+            {
+                col = get_lightPong(hit, rd, l, FLOWER_COL_CENTER, TEXTURE);
+            } else{
+                col = get_light2(hit, rd, l, FLOWER_COL_CENTER, TEXTURE);
+
+            }   
             //col *= texelFetch(BUF_A,ivec2(hit.id,1),0).xxx*2.+0.1; 
             col = max(col,vec3(0)); 
             glow = 0.;  
@@ -349,7 +355,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         //col = mix(col, feed, 0.2)*0.051+col*0.25;
         int song_sect = getSongSection(MIDI);
         //pl_dist *= smoothstep(8.,3., pl_dist)*smoothstep(100.,8.,pl_dist)+0.2;
-        vec3 sun3 =  clamp(integrateLightFullView(ro-SunPos,rd,1.81*pl_dist,0.5),0.,1.)*SunCol;
+        vec3 sun3 =  clamp(integrateLightFullView(ro-SunPos,rd,5.81*pl_dist,0.18),0.,1.)*SunCol;
        
         
         col += pow(sun3,vec3(4.5))*occl;

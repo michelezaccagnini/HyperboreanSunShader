@@ -5,7 +5,7 @@ const float STREAM_SLIDE = FPS == 60 ? 0.5 : 1.;
 #define MAX_DIST 100.
 #define LOOKAT vec3(cos(iTime),sin(iTime),0)*0.8
 const vec3 SunPos = vec3(0,0,50);
-const vec3 SunCol = vec3(0.9333, 0.8157, 0.1294);
+const vec3 SunCol = vec3(0.702, 0.8706, 0.9255);
 
 #define AA 1
 //#define REDUCE_BOXY
@@ -66,6 +66,7 @@ const int DRUMS_ENV_ROW = DRUMS_BLOCK_OFFSET + DRUMS_BLOCK.y-1;
 const int[NUM_DRUMS] DRUMS_TIME_WIDTH = int[NUM_DRUMS](3,4,3,3,4,3,3,3);
 #define DRUMS_LENGTH 0.72
 #define ASTEROID_SPEED 10.
+
 
 
 //Camera uniforms
@@ -175,6 +176,41 @@ vec3 to_cartesian(vec2 uv)
     return vec3(cos(uv.x), 0, sin(uv.x)) * cos(uv.y) + vec3(0, sin(uv.y), 0);
 }
 
+float sphDensity( vec3  ro, vec3  rd,   // ray origin, ray direction
+                  vec3  sc, float sr,   // sphere center, sphere radius
+                  float dbuffer )       // depth buffer
+{
+    // normalize the problem to the canonical sphere
+    float ndbuffer = dbuffer / sr;
+    vec3  rc = (ro - sc)/sr;
+	
+    // find intersection with sphere
+    float b = dot(rd,rc);
+    float c = dot(rc,rc) - 1.0;
+    float h = b*b - c;
+
+    // not intersecting
+    if( h<0.0 ) return 0.0;
+	
+    h = sqrt( h );
+    
+    //return h*h*h;
+
+    float t1 = -b - h;
+    float t2 = -b + h;
+
+    // not visible (behind camera or behind ndbuffer)
+    if( t2<0.0 || t1>ndbuffer ) return 0.0;
+
+    // clip integration segment from camera to ndbuffer
+    t1 = max( t1, 0.0 );
+    t2 = min( t2, ndbuffer );
+
+    // analytical integration of an inverse squared density
+    float i1 = -(c*t1 + b*t1*t1 + t1*t1*t1/3.0);
+    float i2 = -(c*t2 + b*t2*t2 + t2*t2*t2/3.0);
+    return (i2-i1)*(3.0/4.0);
+}
 float sdCapsule( vec3 p, vec3 a, vec3 b, float r)
 {
   vec3 pa = p - a, ba = b - a;
@@ -376,7 +412,7 @@ vec3 ropePerhi(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_po
         float bez_ind = floor(float(i)/2.);
         vec2 lwise =vec2(t*span+bez_ind*span,t);
         float l = clamp(pow(lwise.x,0.8),0.,1.);
-        float w =smoothstep(0.4,0.,abs(l-pow(env,0.2)))*smoothstep(0.2,0.6,l)*0.4+0.2;
+        float w =smoothstep(0.4,0.,abs(l-pow(env,0.2)))*smoothstep(0.2,0.6,l)*0.2+0.1;
         
         //float d = dbox3(c_point, vec3(.1,w*0.4+0.11, w*0.4+0.19));
          float d = sdCappedCylinder(c_point,w,w);
@@ -414,7 +450,7 @@ vec3 ropePong(vec3 p, int rope_id, sampler2D text, float env, inout vec3 hit_poi
         vec2 lwise =vec2(t*span+bez_ind*span,t);
         env = pow(env,0.5);
 
-        float w =smoothstep(0.5,0.,abs(lwise.x-env))*0.4*smoothstep(0.9,0.1,lwise.x)+0.2;//+0.1*smoothstep(0.2,0.4,lwise.x);
+        float w =smoothstep(0.5,0.,abs(lwise.x-env))*0.2*smoothstep(0.9,0.1,lwise.x)+0.0;//+0.1*smoothstep(0.2,0.4,lwise.x);
         
         //float d = dbox3(c_point, vec3(.1, w, w));
          float d = sdCappedCylinder(c_point,w,w);
@@ -640,8 +676,6 @@ vec4 assignEnvelopeSlotDrums(ivec2 tex_coo, int pitch1, int pitch2,
         return vec4(prev_vel, is_on,new_slot,trigger ? 1. : 0.);
 }
 
-
-
 vec3 getEnvelopeBass(ivec2 tex_coo, int pitch, int chan, float dur, float sli, sampler2D midi, sampler2D feedb)
 {
         vec4  prev_data = iFrame < 10 ? vec4(0) : texelFetch(feedb,tex_coo,0);
@@ -747,15 +781,16 @@ vec3 getPosPong(int id, float env, sampler2D midi)
     //data = pow(data,vec3(0.5));
     //data.y = pow(data.y,0.5);
     env = smoothstep(0.051,0.6,env);
-    float longi = data.x*TAU*0.1;
-    float lati =  data.y*TAU*0.8;
+    float longi = data.x*TAU*0.051*data.z;
+    float lati =  data.y*TAU*0.021*env;
     float offs = float(id-8);
-    pos = vec3(data.x*0.2,0,offs+data.x*0.);
-    pos.xz *= 0.25;
+    // /pos = vec3(data.x*0.2,0,offs+data.y*0.2);
+    pos.xz = vec2(float(id)/8.)+vec2(longi,lati);
+    //pos.xz *= 1.25;
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
-    vec3 spherical_pos = to_cartesian(pos.xz)*(STAR_RAD*1.-env*2.8+0.5); 
+    vec3 spherical_pos = to_cartesian(pos.xz)*(0.*1.+env*2.8+STAR_RAD*0.8); 
     //spherical_pos.y -= env*1.;
-    spherical_pos.xz *= rotate(iTime);
+    //spherical_pos.xz *= rotate(iTime);
     spherical_pos.zy *= rotate(iTime+0.2);
 
     return false ? pos : spherical_pos;
@@ -784,22 +819,26 @@ vec3 perhi_sect_displ(int song_sect)
            vec3(0,0,LAST_SECT_DISPLACE) ;
 }
 
-vec3 getPosDrums(int id, float env)
+vec3 getPosDrums(ivec2 id, float env)
 {
-    const float[8] off = float[8](0.2,0.4,0.6,0.8,0.1,0.3,0.7,0.9);
+    //Relevant_drums (1,2,4,7)
+    const float[8] off = float[8](0.,0.1,0.2,0.3,0.4,0.5,0.6,0.7);
    //data.x = 1.-data.x;
     //data = pow(data,vec3(0.5));
     //data.y = pow(data.y,0.5);
     //env = smoothstep(0.051,0.3,env);
     
-    float ang = off[id]*TAU;//+sect*0.+data.x*0.1+iTime*0.12;
+    float ang = (off[id.x]+float(id.y)/130.)*TAU+iTime;//+sect*0.+data.x*0.1+iTime*0.12;
     float rad = STAR_RAD;
-    vec3 pos = vec3(cos(ang),sin(ang),0)*5.;
-    pos.z += env*10.-10.;
-    pos.xy *=rotate(iTime*1.12);
+    vec3 pos = vec3(cos(ang),sin(ang),0);
+    //pos *= pow(smoothstep(0.9,0.4,env),0.5)+STAR_RAD;
+    //pos.xz *= rotate(iTime);
+    //pos.xy *=rotate(iTime*1.12);
+    env = pow(env,0.5);
+    pos = to_cartesian(vec2(float(id.y)*TAU,off[id.x]*(env*0.1+2.5)))*STAR_RAD;
     
     //pos.z -= mod(float(id), 2.) > 0.5 ? 5. : 0.;
-    return pos;
+    return pos*(STAR_RAD*0.1+(1.-env*1.));
 }
 
 vec3 getPosBass(int id, float env, sampler2D midi)
@@ -893,9 +932,9 @@ vec3 animPongData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             float env = texelFetch(text, ivec2(id, PONG_ENV_ROW),0).x;
             vec3 tar = getPosPong(id+chan_offset,env, midi);
             vec3 cur = texelFetch(text,tex_coo,0).xyz;
-            return slide(tar, cur, 0.5*STREAM_SLIDE);
+            return slide(tar, cur, 0.4*STREAM_SLIDE);
         } 
-        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,0.5*STREAM_SLIDE);
+        else  return iFrame < 10 ? vec3(1) : pix_stream(tex_coo,text,1.*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
@@ -914,7 +953,7 @@ vec3 animPongData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
     {
         int id = tex_coo.x;
         int chan = id + chan_offset;
-        return getEnvelope(id, chan, PONG_ENV_ROW, 3., 0.5, midi, text);
+        return getEnvelope(id, chan, PONG_ENV_ROW, 3., 0.2, midi, text);
     } 
 
 }
@@ -941,9 +980,9 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
             //add a bit of rotation so that the bezier is always 
             //moving and is drawn correclty (if still it does not trace correctly)
             tar.xz += tar.xz*rotate(iTime*2.083)*0.01;
-            return vec4(slide(tar, cur, 0.5),0);
+            return vec4(slide(tar, cur, 0.),0);
         } 
-        else  return iFrame < 10 ? vec4(1) :  pix_stream4(tex_coo,text,0.8*STREAM_SLIDE);
+        else  return iFrame < 10 ? vec4(1) :  pix_stream4(tex_coo,text,2.*STREAM_SLIDE);
     }
     else if(block_id == 1)
     {
@@ -960,7 +999,7 @@ vec4 animPerhiData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
     {
         int id = tex_coo.x;
         int chan = id + chan_offset ;
-        float dur = 1.8, width =4.;
+        float dur = 1., width =5.;
         return getEnvelopeSector(id, chan, PERHI_ENV_ROW, dur, 0.5, width, midi, text);
     } 
 }
@@ -970,13 +1009,16 @@ vec4 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
     int rope_points = block.x, sub_block = block.z, tot_block = block.y, block_offset = block.w;
     float frope_points = float(rope_points);
     int block_id = int(float(tex_coo.y-block_offset)/float(sub_block));
+    float dur = 8.;
     // drums is on midi chan 16
     //return vec3(block_id == 1 ? 1 : 0);
     if(block_id == 0)
     {
         int id = tex_coo.y-block_offset;
-        int pitch1 = id + DRUMS_PITCH_OFFSET;
-        int pitch2 = (NUM_DRUMS- id) + DRUMS_PITCH_OFFSET;
+        const int[8] vel_id = int[8](7,6,5,4,3,2,1,0);
+        //return vec4(id == 7 ? 1 : float(NUM_DRUMS - id - 1)/8.);
+        int pitch1 = id  + DRUMS_PITCH_OFFSET  ;
+        int pitch2 = vel_id[id] + DRUMS_PITCH_OFFSET ;
         int chan = DRUMS_CHAN ;
         //return vec4(pitch1 == 31 ? 0.5 : 0.);
         
@@ -990,15 +1032,13 @@ vec4 animDrumsData(ivec2 tex_coo, ivec4 block, sampler2D midi, sampler2D text)
         else if (slot_info.w > 0.5 && int(slot_info.z+1) == tex_coo.x )
         {
              float env = texelFetch(text,tex_coo,0).x;
-            vec3 pos = getPosDrums(id,env);
-            float dur = 4.;
+            vec3 pos = getPosDrums(ivec2(id, tex_coo.x),env);
             return vec4(slot_info.x,pos);
         }
         else 
         {
             float env = texelFetch(text,tex_coo,0).x;
-            vec3 pos = getPosDrums(id,env);
-            float dur = 4.;
+            vec3 pos = getPosDrums(ivec2(id, tex_coo.x),env);
             return vec4(slide(env,0.,1/dur), pos);
         }
     }
@@ -1119,6 +1159,51 @@ vec3 get_light2(HitInfo hit, vec3 rd, vec3 l_pos, vec3 l_col, sampler2D TXT)
     vec3 txt = texture(TXT,hit.uv_transorm).xyz;
     float bump = clamp(dot(txt,txt),0.,1.);
     col = mix(col,txt,0.6);//*2.2 *light_intensity*0.5;
+    //mist
+    //col += vec3(mix(vec3(0.0275, 0.4784, 0.9922), vec3(0), exp(-hit.dist /1005.)));
+
+    return col  ;
+} 
+
+vec3 get_lightPong(HitInfo hit, vec3 rd, vec3 l_pos, vec3 l_col, sampler2D TXT)
+{
+    vec3 norm= hit.nor, p= hit.pos;
+    vec3 diff = blinn_phong(p,rd,SunPos,norm,SunCol)*0.1;
+    vec3 r = reflect(rd,norm);
+    float l = length(p);
+    float fr = clamp(1. - dot(norm,-rd), 0.,1.);
+    float bodyR = 1.5;
+    float cone = cos(atan(bodyR / l));
+
+    float specshad = 1. - smoothstep(-0.1,0.1, dot(r,normalize(-p)) -cone);
+    float specshad2 = 1. - smoothstep(-0.3,0.3, dot(r,normalize(-p)) -cone);
+
+    //backlight / fake SSS
+    vec3 col = diff;//+vec3(1,1,0.4) * pow(env,1.)* 1.1/(10.-exp(hit.x*.01)); 
+    //col += l_col * mix(vec3(0.2,0.5,1.) /  2., vec3(1.,0.9,0.8).bgr,specshad2 * pow(fr,0.8))*0.8;
+
+    //fake AO from center 
+    col *= vec3(pow(mix(0.5+0.5*dot(norm,normalize(-p)), 1., smoothstep(0.8,0.9,l)), 0.5));
+
+    //slight AO / diffuse bleeding
+    col *= mix(SunCol, vec3(1), smoothstep(0.5,0.9,l));
+
+    vec3 c = col;
+    //yellow tips
+    //col = mix(c.bbb * vec3(0.5,1.,0.5), col *pow(hit.env,1.)*0.1, smoothstep(0.65,1.,l));
+        
+    //envelope illumination
+    float env_ill = smoothstep(0.1,0.,abs(l-pow(hit.env,1.5)));
+    col += vec3(1,1,0.4) *(0.1/(1.-exp(-hit.dist))* pow(hit.env,1.)*3.1*env_ill);
+    //col += vec3(1,1,0.4) * pow(hit.env,2.)*0.1;
+    //specular highlight
+    col +=  smoothstep(0.4,0.7, dot(r, normalize(vec3(1)))) * fr;
+
+    //float stripe = pow(smoothstep(0.1,0.0,abs(pow(hit.env,0.5)-(1.-hit.uv.y))),0.5);
+    //col *=vec3(stripe *0.5+0.8);//diff*pow(hit.env,1.5)*1.+0.1;//max(col, vec3(0));
+    vec3 txt = texture(TXT,hit.uv_transorm).xyz;
+    float bump = clamp(dot(txt,txt),0.,1.);
+    col = mix(col,txt,0.8);//*2.2 *light_intensity*0.5;
     //mist
     //col += vec3(mix(vec3(0.0275, 0.4784, 0.9922), vec3(0), exp(-hit.dist /1005.)));
 

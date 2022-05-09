@@ -47,6 +47,26 @@ vec3 get_bump_norm(vec3 n, vec2 uv)
 }
 
 
+vec2 drum_hit_planet(vec3 p_front, vec3 p_back)
+{
+    int block = DRUMS_BLOCK_OFFSET;
+    float f, b;
+    for(int id = 0; id < 8; id++)
+    {
+        for(int i = 1; i < 8; i++)
+        {
+            vec4 data = texelFetch(BUF_A,ivec2(i,block+id),0);
+            float env = pow(data.x,0.5);//*Drums_fix_amp[y] ;
+            vec3 p  = data.yzw;
+            float distf = distance(p,p_front), distb = distance(p,p_back);
+            distf = smoothstep(3.,0.5,distf)*env, distb = smoothstep(3.,0.5,distb)*env;
+            f += distf, b += distb;
+        }
+    }
+    return vec2(f,b);
+}
+
+
 
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
@@ -67,11 +87,13 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     //b = get_bump(ro+rd*sph.y);
     //sph.y = asphere(ro,rd,rad-b).y;
     float front=  sph.x, back = sph.y;
+    vec3 p_front = ro+rd*front, p_back = ro+rd*back;
     vec3 uv_fr = get_uv(ro+rd*front), uv_bk = get_uv(ro+rd*back);
     vec3 txf = texture(ORGA,uv_fr.xy).xyz*1.0*uv_fr.z;
     vec3 txb = texture(ORGA,uv_bk.xy).xyz*1.0*uv_bk.z;
     vec4 dru = texture(BUF_C,fragCoord/iResolution.xy);
-    fgl -= dru.w;
+    float d_ctr = sphDensity(ro,rd,vec3(0),10.,100.);
+    fgl *= clamp(dru.w*3.,0.,1.);
     if(sph.x < MAX_DIST && sph.x > 0.2)
     {
         //glow*= 0.1;
@@ -83,7 +105,10 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         
         col = max(blinn_phong(ro+rd*front, rd, vec3(0,1,0),surf_norm_front, SunCol)*fgl,col);
         col = max(blinn_phong(ro+rd*back , rd, vec3(0,1,0),surf_norm_back, SunCol )*fgl,col);
-        col += (txf+txb*0.5)*(fgl+dru.w)*SunCol;
+        //col += (txf+txb*0.5)*(fgl+dru.w)*SunCol;
+        vec2 drum_hit = drum_hit_planet(p_front,p_back);
+        col += (txf*drum_hit.x+txb*drum_hit.y);
+        dru.xyz *= smoothstep(0.9,0.5,d_ctr);
         //col = vec3(glow);
         //col = nfr;
         //col = vec3(sph_uv1.xxx);
@@ -91,7 +116,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 
 
     #if 0
-    vec2 o = vec2(0.0015,0);
+    vec2 o = vec2(0.0025,0);
     col += texture(BUF_B,fragCoord/iResolution.xy+o).xyz;
     col += texture(BUF_B,fragCoord/iResolution.xy+o.yx).xyz;
     col += texture(BUF_B,fragCoord/iResolution.xy-o).xyz;
@@ -103,7 +128,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     #if 0
     //fragColor = vec4(getSongSection(MIDI) == 2 ? 1 : 0);
     
-    fragColor = false ?  texelFetch(BUF_A,ivec2(fragCoord*vec2(0.02,0.3)),0).xxxx 
+    fragColor = false ?  texelFetch(BUF_A,ivec2(fragCoord*vec2(0.02,0.051)+vec2(0,60)),0).xxxx 
                     : texelFetch(BUF_C,ivec2(fragCoord*vec2(1)),0).xxxx;
     
     #else
