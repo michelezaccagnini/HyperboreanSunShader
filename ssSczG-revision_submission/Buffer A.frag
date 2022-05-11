@@ -33,7 +33,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     else if(pong_on)    fragColor.xyz =  true? animPongData(iCoo,PONG_BLOCK,MIDI,FEEDBACK)  : vec3(1,0,0);//
     else if(perhi_on)   fragColor     =  true? animPerhiData(iCoo,PERHI_BLOCK,MIDI,FEEDBACK) : vec4(0,1,0,0);//
     else if(drums_on)   fragColor =  true ? animDrumsData(iCoo,DRUMS_BLOCK,MIDI,FEEDBACK) : vec4(0.451, 0.902, 0.902, 0.0);//
-    else if(bass_on)    fragColor.xyz =  true ? animBassData(iCoo,BASS_BLOCK,MIDI,FEEDBACK) : vec3(0,0.2,1);//    
+    else if(bass_on)    fragColor =  true ? animBassData(iCoo,BASS_BLOCK,MIDI,FEEDBACK) : vec4(0,0.2,1,0);//    
     }
 }
 #endif

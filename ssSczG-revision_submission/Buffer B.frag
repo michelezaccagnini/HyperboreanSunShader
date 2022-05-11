@@ -23,6 +23,8 @@ each dimension is mapped to a parameter:
 */
 
 float glow;
+float glow_perhi;
+float glow_flower;
 #define SUN_COLOR vec3(0.8902, 0.9333, 0.0784)
 #define SUN_POS vec3(0,0,100)
 vec3 sun;
@@ -34,8 +36,6 @@ float mapSimple(vec3 p)
     bool flower_on = is_flower_on(song_sect);
     bool pong_on = is_pong_on(song_sect);
     bool perhi_on = is_perhi_on(song_sect);
-    bool drums_on = is_drums_on(song_sect);
-    bool bass_on = is_bass_on(song_sect);
     vec3 hit_point;
     if(flower_on)
     {
@@ -79,26 +79,6 @@ float mapSimple(vec3 p)
             if(rop.x < dist) dist = rop.x; 
         }
     }
-    if(drums_on)
-    {
-        int block = DRUMS_BLOCK_OFFSET+DRUMS_BLOCK.z;
-        for(int id = 0; id < 8; id++)
-        {
-            float env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
-            vec3 rop  = ropeDrums(p, id+block,BUF_A, env, hit_point);
-            if(rop.x < dist) dist = rop.x;
-        }
-    }
-    if(bass_on)
-    {
-        for(int id = 0; id < 8; id++)
-        {
-            float env = texelFetch(BUF_A,ivec2(id,BASS_ENV_ROW),0).x;
-            vec3 displ = song_sect > 5 ?vec3(0,0, LAST_SECT_DISPLACE) : vec3(0);
-            vec3 rop  = ropeDrums(p-displ, id+BASS_BLOCK_OFFSET+BASS_BLOCK.z,BUF_A, env, hit_point);
-            if(rop.x < dist) dist = rop.x;
-        }
-    }
     return dist;
 }
 
@@ -112,8 +92,6 @@ HitInfo map(vec3 p, bool refl)
     bool flower_on = is_flower_on(song_sect);
     bool pong_on = is_pong_on(song_sect);
     bool perhi_on = is_perhi_on(song_sect);
-    bool drums_on = is_drums_on(song_sect);
-    bool bass_on = is_bass_on(song_sect);
     vec3 hit_point = vec3(0);
     //moving star dust
     vec3 op = p;
@@ -131,10 +109,6 @@ HitInfo map(vec3 p, bool refl)
             vec3 displ = flower_sect_displ(song_sect);
             vec3 sp_pos = displ;
             vec3 rop = rope_flower1(p-displ,id+FLOWER_BLOCK.z  ,BUF_A,env,hit_point);
-            //vec3 rope_attach = rope_flower2(p-displ,id+FLOWER_BLOCK.z*3,BUF_A,hit_point2); 
-            //float joint = length(p-texelFetch(BUF_A,ivec2(0,id+FLOWER_BLOCK.z*3),0).xyz)-0.1;
-            //vec3 rop = opU(rope_center,rope_attach);
-            //bool is_first = rope_center.x < rope_attach.x; 
             float c_sphere = length(p-sp_pos)-0.5;
             hit_point = hit_point;
             float h = 0.;
@@ -143,20 +117,21 @@ HitInfo map(vec3 p, bool refl)
             float o_sphere = length(p)-STAR_RAD*0.9;
             rop.x = smax(rop.x,o_sphere,0.3);
             float glow_int = smoothstep(0.051,0.,abs(rop.z*1.-(1.-pow(env,.75))))*smoothstep(STAR_RAD,STAR_RAD/2.,length(p));
-            glow += (.1/(0.1+rop.x*rop.x*rop.x))*glow_int;
+            glow += (.1/(0.1+rop.x*rop.x*rop.x))*glow_int;   
+            glow_flower += (0.5/(0.1+rop.x*rop.x*rop.x*rop.x+50.));
             
             if(c_sphere< d && !refl)
             {
-                glow += smoothstep(0.3,0.2,(0.01/(0.1+rop.x*rop.x+cos(p.z)*80.))*pow(h,0.5))*0.0005;
-                
+                glow += smoothstep(0.3,0.2,(0.01/(0.1+rop.x*rop.x+cos(p.z)*80.))*pow(h,0.5))*0.0005;     
             } 
             if(rop.x < res.dist)
             {
+                glow = min(glow_flower,glow);
                 //id += is_first ? 0 : 5;
-                vec2 tuv = rop.yz*0.1;
+                vec2 tuv = rop.yz*0.3;
                 tuv.y += env;
                 vec3 txt = texture(TEXTURE,tuv).xyz;
-                float bump = clamp(dot(txt,txt),0.,1.)*0.051;
+                float bump = clamp(txt.r*0.1,0.,1.)*0.41;
                 res.dist = rop.x-bump, res.id = ivec2(1,id), res.uv = rop.yz,
                 res.uv_transorm = tuv, 
                 res.pos = p, res.surf = hit_point,
@@ -204,10 +179,11 @@ HitInfo map(vec3 p, bool refl)
             float h = 0.;
             float d = rop.x;
             rop.x = smin(c_sphere,d,0.9,h);
-            float o_sphere = length(p)-STAR_RAD*2.9;
+            float o_sphere = length(p)-STAR_RAD*0.9;
             rop.x = smax(rop.x,o_sphere,0.5);
             float glow_int = smoothstep(0.025,0.02,abs(rop.z*0.2-pow(env,0.6)))*pow(rop.z,1.5)*1.;//*smoothstep(0.5,0.4,pow(rop.z,2.5));
             glow += (0.1/(0.1+rop.x*rop.x))*glow_int;
+            glow_perhi += (0.5/(0.1+rop.x*rop.x*rop.x*rop.x+50.));
             if(c_sphere< d && !refl)
             {
                 glow += smoothstep(0.3,0.2,(0.01/(0.1+rop.x*rop.x))*pow(1.-h,0.5))*0.0005;
@@ -215,6 +191,7 @@ HitInfo map(vec3 p, bool refl)
             } 
             if(rop.x < res.dist)
             {
+                glow = min(glow_perhi,glow);
                 vec2 tuv = rop.yz*0.14;
                 tuv.y += env;
                 vec3 txt = texture(TEXTURE,tuv).xyz;
@@ -228,39 +205,7 @@ HitInfo map(vec3 p, bool refl)
             }
         }
     }
-    if(false)//drums_on)
-    {
-        vec3 hit_point = vec3(0);
-        int block = DRUMS_BLOCK_OFFSET+DRUMS_BLOCK.z;
-        for(int id = 0; id < 8; id++)
-        {
-            float env = texelFetch(BUF_A,ivec2(id,DRUMS_ENV_ROW),0).x;
-            vec3 pp  = texelFetch(BUF_A,ivec2(0,id+block),0).xyz;
-            pp.z -= mod(iTime*ASTEROID_SPEED,10.);
-            //pp.xy *=1.;
-            float pa =  length( p-pp);
-            glow += (100.8*pow(env,0.5))/(0.1+pa*pa*50.);
-           
-        }
-    }
-    if(bass_on)
-    {
-        vec3 hit_point = vec3(0);
-        for(int id = 0; id < 8; id++)
-        {
-            float env = texelFetch(BUF_A,ivec2(id,BASS_ENV_ROW),0).x;
-            vec3 displ = song_sect > 5 ?vec3(0,0, LAST_SECT_DISPLACE) : vec3(0);
-            vec3 rop  = ropeDrums(p-displ, id+BASS_BLOCK_OFFSET+BASS_BLOCK.z,BUF_A, env, hit_point);
-            //rop.x = min(rop.x,sph);
-            if(rop.x < res.dist)
-            {
-                res.dist = rop.x, res.id = ivec2(4,id), res.uv = rop.yz, 
-                res.pos = p, res.surf = hit_point, 
-                res.env = texelFetch(BUF_A,ivec2(id,BASS_ENV_ROW),0).x;
-                res.surf = hit_point, res.smin = 0.;
-            }
-        }
-    }
+   //drums and bass are rendered in buf C and D as lights
     
     return res;
 }
@@ -320,7 +265,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         vec3 rd = cam * normalize(vec3(uv,1));
         bool refl = false;
         HitInfo hit = intersect(ro,rd,refl);
-        bool is_flo_perhi = any(equal(ivec2(hit.id.x),ivec2(1,3)));
         float rad = STAR_RAD;
         vec2 sph = asphere(ro,rd,rad);
         vec3 l = SunPos;
@@ -335,9 +279,15 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
             if(hit.id.x == 2)
             {
                 col = get_lightPong(hit, rd, l, FLOWER_COL_CENTER, TEXTURE);
-            } else{
-                col = get_light2(hit, rd, l, FLOWER_COL_CENTER, TEXTURE);
+            } 
+            else if(hit.id.x == 3)
+            {
+                col = get_lightPerhi(hit, rd, l, FLOWER_COL_CENTER, TEXTURE);
+            } 
 
+            else
+            {
+                col = get_lightFlower(hit, rd, l, FLOWER_COL_CENTER, TEXTURE);
             }   
             //col *= texelFetch(BUF_A,ivec2(hit.id,1),0).xxx*2.+0.1; 
             col = max(col,vec3(0)); 
@@ -346,31 +296,26 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         }
         vec3 pla = plane(ro,rd,vec3(0),normalize(ro));
         float pl_dist = max(0.,mapSimple(pla));
-
-        
-        vec3 fCol = getSky(rd, l);
-        //if(sph.x < MAX_DIST) col = mix(clamp(col, 0., 1.), fCol, smoothstep(.14, .6, sph.y/MAX_DIST));
-        
+        float d_ctr = sphDensity(ro,rd,vec3(0),STAR_RAD*2,10000.);
         vec3 feed = max(pow(texture(FEEDBACK,fragCoord/iResolution.xy).xyz,vec3(2.)),vec3(0));
-        //col = mix(col, feed, 0.2)*0.051+col*0.25;
         int song_sect = getSongSection(MIDI);
-        //pl_dist *= smoothstep(8.,3., pl_dist)*smoothstep(100.,8.,pl_dist)+0.2;
         vec3 sun3 =  clamp(integrateLightFullView(ro-SunPos,rd,5.81*pl_dist,0.18),0.,1.)*SunCol;
-       
-        
         col += pow(sun3,vec3(4.5))*occl;
-        
+        //fog at center of planet
+        //col = mix(col,max(SunCol,col), smoothstep(0.0,0.99,pow(d_ctr,7.5))*0.0051);
         col = pow(col,vec3(.4545));
         tot += col;
+        //fake occlusion at the center of the sphere
+        //tot = 
         //tot = vec3(smoothstep(0.,1.,pl_dist*0.1))*0.1;
 #if AA > 1
     }
-
     tot /= float(AA);
     glow /= float(AA);
 #endif
     float g = slide(texture(FEEDBACK,fragCoord/iResolution.xy).w,glow,glo_sli*STREAM_SLIDE)*.8*(1.-glo_sli)+pow(glow,2.5)*0.051;
-    fragColor= vec4(tot+sun, g);
+    g = max(max(glow_perhi,glow_flower),g);
+    fragColor= vec4(tot, g);
 }
 
 

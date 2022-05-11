@@ -66,6 +66,24 @@ vec2 drum_hit_planet(vec3 p_front, vec3 p_back)
     return vec2(f,b);
 }
 
+vec2 bass_hit_planet(vec3 p_front, vec3 p_back)
+{
+    int block = BASS_BLOCK_OFFSET;
+    float f, b;
+    for(int id = 0; id < 8; id++)
+    {
+        for(int i = 1; i < 8; i++)
+        {
+            vec4 data = texelFetch(BUF_A,ivec2(i,block+id),0);
+            float env = pow(data.x,0.5);//*Drums_fix_amp[y] ;
+            vec3 p  = data.yzw;
+            float distf = distance(p,p_front), distb = distance(p,p_back);
+            distf = smoothstep(3.,0.5,distf)*env, distb = smoothstep(3.,0.5,distb)*env;
+            f += distf, b += distb;
+        }
+    }
+    return vec2(f,b);
+}
 
 
 
@@ -96,8 +114,8 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     fgl *= clamp(dru.w*3.,0.,1.);
     if(sph.x < MAX_DIST && sph.x > 0.2)
     {
-        //glow*= 0.1;
-        fgl = smoothstep(2.2,3.9,fgl*30.)*0.5;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
+        //glow*= 0.8;
+        fgl = smoothstep(2.2,3.9,fgl*30.)*2.5;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
         vec3 norm_front = normalize(ro+rd*sph.x), norm_back = normalize(ro+rd*sph.y);
         // bump mapping
 	    vec3 surf_norm_front = get_bump_norm(norm_front,uv_fr.xy), 
@@ -107,7 +125,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         col = max(blinn_phong(ro+rd*back , rd, vec3(0,1,0),surf_norm_back, SunCol )*fgl,col);
         //col += (txf+txb*0.5)*(fgl+dru.w)*SunCol;
         vec2 drum_hit = drum_hit_planet(p_front,p_back);
-        col += (txf*drum_hit.x+txb*drum_hit.y);
+        vec2 bass_hit = bass_hit_planet(p_front,p_back);
+        col += (txf*drum_hit.x+txb*drum_hit.y)*SunCol*5.;
+        col += (txf*bass_hit.x+txb*bass_hit.y)*vec3(0.9647, 0.0745, 0.0745)*5.;
         dru.xyz *= smoothstep(0.9,0.5,d_ctr);
         //col = vec3(glow);
         //col = nfr;
@@ -128,7 +148,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     #if 0
     //fragColor = vec4(getSongSection(MIDI) == 2 ? 1 : 0);
     
-    fragColor = false ?  texelFetch(BUF_A,ivec2(fragCoord*vec2(0.02,0.051)+vec2(0,60)),0).xxxx 
+    fragColor = false ?  texelFetch(BUF_A,ivec2(fragCoord*vec2(0.02,0.051)+vec2(0,80)),0).xxxx 
                     : texelFetch(BUF_C,ivec2(fragCoord*vec2(1)),0).xxxx;
     
     #else
