@@ -1,4 +1,4 @@
-//MIDI data parsing
+//DRUMS buffer lights bouncing on planet
 #define FEEDBACK iChannel0
 #define BUF_A iChannel1
 #define BUF_D iChannel3
@@ -35,21 +35,30 @@ vec4 drawDrums(vec3 ro, vec3 rd)
 
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-     // Normalized pixel coordinates (from 0 to 1)
-    vec2 uv = (fragCoord-0.5*iResolution.xy)/iResolution.y*2.;
-    vec2 uv2 = fragCoord/iResolution.y;
-    vec3 ro = texelFetch(BUF_A,RO_COO,0).xyz;
-    vec3 lookat = vec3(0);
-    mat3 cam = camera(ro, lookat, 0.);
-    vec3 rd = cam * normalize(vec3(uv,1));
+
     int song_sect = getSongSection(MIDI);
-    bool drums_on = is_drums_on(song_sect);
-    vec4 dru = drums_on ? drawDrums(ro,rd) : vec4(0);
-    dru.xyz = max(dru.xyz,vec3(0));
-    vec4 feedb = texture(FEEDBACK,fragCoord/iResolution.xy);
-    vec4 bass = texture(BUF_D,fragCoord/iResolution.xy);
-    vec4 col = dru*0.8 +feedb*0.5+bass;
-    fragColor = col;
+    if(ivec2(fragCoord) == ivec2(0) )//pass song section value to pix 0 0, for image tab to know
+    {
+        fragColor.x = float(song_sect);
+    }
+    else
+    {
+        // Normalized pixel coordinates (from 0 to 1)
+        vec2 uv = (fragCoord-0.5*iResolution.xy)/iResolution.y*2.;
+        vec2 uv2 = fragCoord/iResolution.y;
+        vec3 ro = texelFetch(BUF_A,RO_COO,0).xyz;
+        vec3 lookat = vec3(0);
+        mat3 cam = camera(ro, lookat, 0.);
+        vec3 rd = cam * normalize(vec3(uv,1));
+        
+        bool drums_on = is_drums_on(song_sect);
+        vec4 dru = drums_on ? drawDrums(ro,rd) : vec4(0);
+        dru.xyz = max(dru.xyz,vec3(0));
+        vec4 feedb = texture(FEEDBACK,fragCoord/iResolution.xy);
+        vec4 bass = texture(BUF_D,fragCoord/iResolution.xy);
+        vec4 col = dru*0.8 +feedb*0.5+bass;
+        fragColor = col;
+    }
     
 
 }

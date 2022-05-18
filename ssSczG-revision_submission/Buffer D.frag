@@ -1,4 +1,4 @@
-//MIDI data parsing
+//Bass buffer red lights bouncing on planet
 #define FEEDBACK iChannel0
 #define BUF_A iChannel1
 #define MIDI iChannel2

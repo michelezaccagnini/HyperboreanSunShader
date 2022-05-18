@@ -9,7 +9,8 @@
 #if 0
 void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
-    fragColor = texelFetch(MIDI,ivec2(fragCoord),0);
+    //fragColor = texelFetch(MIDI,ivec2(fragCoord),0);
+    fragColor.xyz = getRO(ivec2(0,RO_COO.y), RO_CHAN, RO_CC, FEEDBACK, MIDI);
 }
 #else
 
@@ -28,7 +29,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     bool drums_on  = is_drums_on(song_sect) && iCoo.y >= DRUMS_BLOCK_OFFSET && iCoo.y < RO_BLOCK_OFFSET;
     bool ro_on     = iCoo == ivec2(0,RO_COO.y);
     bool bass_on  = is_bass_on(song_sect) && iCoo.y >= BASS_BLOCK_OFFSET;
-    if (ro_on)          fragColor.xyz =  true ? getRO(iCoo, song_sect, RO_CHAN, RO_CC, FEEDBACK, MIDI) : vec3(0,1,0);
+    if (ro_on)          fragColor.xyz =  true ? getRO(iCoo, RO_CHAN, RO_CC, FEEDBACK, MIDI) : vec3(0,1,0);//debug block placement with colors
     else if(flower_on)  fragColor.xyz =  true? animFlowerData(iCoo,FLOWER_BLOCK,MIDI,FEEDBACK):vec3(0.11);     
     else if(pong_on)    fragColor.xyz =  true? animPongData(iCoo,PONG_BLOCK,MIDI,FEEDBACK)  : vec3(1,0,0);//
     else if(perhi_on)   fragColor     =  true? animPerhiData(iCoo,PERHI_BLOCK,MIDI,FEEDBACK) : vec4(0,1,0,0);//

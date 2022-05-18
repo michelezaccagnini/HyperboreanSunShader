@@ -91,7 +91,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
 {
     vec2 uv = (2.0*(fragCoord)-iResolution.xy)/iResolution.y;
     
-    vec4 bufb = texture(BUF_B,fragCoord/iResolution.xy);//max(texture(BUF_C,fragCoord/iResolution.xy).xyz,texture(BUF_B,fragCoord/iResolution.xy).xyz); 
+    vec4 bufb = texture(BUF_B,fragCoord/iResolution.xy);
     vec3 col = bufb.xyz, glow = FLOWER_COL_CENTER*bufb.w;
     float fgl = bufb.w ;
     vec3 ro = false ? vec3(cos(iTime),0.5,sin(iTime))*10. : texelFetch(BUF_A,RO_COO,0).xyz;
@@ -101,9 +101,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float rad = STAR_RAD;
     vec2 sph = asphere(ro,rd,STAR_RAD);
     float b = get_bump(ro+rd*sph.x);
-    //sph.x = asphere(ro,rd,rad-b).x;
-    //b = get_bump(ro+rd*sph.y);
-    //sph.y = asphere(ro,rd,rad-b).y;
+    int song_sect = int(texelFetch(BUF_C, ivec2(0),0).x);
     float front=  sph.x, back = sph.y;
     vec3 p_front = ro+rd*front, p_back = ro+rd*back;
     vec3 uv_fr = get_uv(ro+rd*front), uv_bk = get_uv(ro+rd*back);
@@ -111,32 +109,38 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     vec3 txb = texture(ORGA,uv_bk.xy).xyz*1.0*uv_bk.z;
     vec4 dru = texture(BUF_C,fragCoord/iResolution.xy);
     float d_ctr = sphDensity(ro,rd,vec3(0),10.,100.);
-    fgl *= clamp(dru.w*3.,0.,1.);
+    
+    fgl *= clamp(bufb.w*3.,0.,1.);
     if(sph.x < MAX_DIST && sph.x > 0.2)
     {
         //glow*= 0.8;
-        fgl = smoothstep(2.2,3.9,fgl*30.)*2.5;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
+        fgl = smoothstep(0.2,2.9,fgl*20.)*0.5;//pow(clamp(fgl*0.5,0.,1.),2.)*0.5;
         vec3 norm_front = normalize(ro+rd*sph.x), norm_back = normalize(ro+rd*sph.y);
         // bump mapping
 	    vec3 surf_norm_front = get_bump_norm(norm_front,uv_fr.xy), 
              surf_norm_back = get_bump_norm(norm_back , uv_bk.xy);
         
+        if((song_sect > 3 && song_sect < 6) || song_sect > 6)
+        {
+            float fresnel = clamp(1. - dot(surf_norm_front ,-rd), 0.,1.);
+            fresnel += clamp(1. - dot(surf_norm_back ,-rd), 0.,1.);
+        
+            col += SunCol*pow(fresnel,0.1)*0.01;
+        }
+     
         col = max(blinn_phong(ro+rd*front, rd, vec3(0,1,0),surf_norm_front, SunCol)*fgl,col);
         col = max(blinn_phong(ro+rd*back , rd, vec3(0,1,0),surf_norm_back, SunCol )*fgl,col);
-        //col += (txf+txb*0.5)*(fgl+dru.w)*SunCol;
         vec2 drum_hit = drum_hit_planet(p_front,p_back);
         vec2 bass_hit = bass_hit_planet(p_front,p_back);
         col += (txf*drum_hit.x+txb*drum_hit.y)*SunCol*5.;
         col += (txf*bass_hit.x+txb*bass_hit.y)*vec3(0.9647, 0.0745, 0.0745)*5.;
-        dru.xyz *= smoothstep(0.9,0.5,d_ctr);
-        //col = vec3(glow);
-        //col = nfr;
-        //col = vec3(sph_uv1.xxx);
+        //dru.xyz *= smoothstep(0.9,0.5,d_ctr);
+        //col = vec3(fgl);
     }
 
 
     #if 0
-    vec2 o = vec2(0.0025,0);
+    vec2 o = vec2(0.0005,0);
     col += texture(BUF_B,fragCoord/iResolution.xy+o).xyz;
     col += texture(BUF_B,fragCoord/iResolution.xy+o.yx).xyz;
     col += texture(BUF_B,fragCoord/iResolution.xy-o).xyz;
@@ -148,7 +152,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     #if 0
     //fragColor = vec4(getSongSection(MIDI) == 2 ? 1 : 0);
     
-    fragColor = false ?  texelFetch(BUF_A,ivec2(fragCoord*vec2(0.02,0.051)+vec2(0,80)),0).xxxx 
+    fragColor = true ?  texelFetch(BUF_A,ivec2(fragCoord*vec2(0.02,0.51)+vec2(0,0)),0) 
                     : texelFetch(BUF_C,ivec2(fragCoord*vec2(1)),0).xxxx;
     
     #else
@@ -156,5 +160,6 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     //col = dot(col,col) > 0.01 ? min(vec3(glow),col): col;
     //glow *= dot(col,col) > 0.1 ? 0. : 2.;
     fragColor = vec4(col+dru.xyz,0.);
+    //fragColor = vec4(col,0.);
     #endif
 }
